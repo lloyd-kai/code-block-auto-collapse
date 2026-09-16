@@ -1,9 +1,12 @@
 // 提交到官方社区插件目录前的自动校验。
 //
-// 把 PLUGIN_DEVELOPMENT.md 第 13.4 节的检查清单变成可执行的断言，覆盖三类容易翻车的问题：
+// 把 PLUGIN_DEVELOPMENT.md 第 13.4 节的检查清单变成可执行的断言，覆盖五类容易翻车的问题：
 //   1. manifest.json 的字段约束（id/name/version/description 的官方硬性要求）；
 //   2. 版本在 manifest / package / versions.json / ZIP 名之间的一致性；
-//   3. 根目录构建产物、release/ 目录、ZIP 内的 main.js 是否真的是同一份。
+//   3. 根目录构建产物、release/ 目录、ZIP 内的 main.js 是否真的是同一份；
+//   4. 社区目录新流程的约束（main.js 不得进仓库、README 必须有披露章节、
+//      package.json 必须有扫描器能识别的生产构建脚本）；
+//   5. 发布工作流是否存在（打 tag 自动建 Release，官方推荐并启用产物溯源证明）。
 //
 // 运行：npm run validate（需先 npm run release 生成 ZIP）
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -11,6 +14,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
@@ -29,6 +33,26 @@ function readJson(name) {
 		return JSON.parse(readFileSync(path, "utf8"));
 	} catch (error) {
 		fail(`${name} 不是合法 JSON：${error.message}`);
+		return null;
+	}
+}
+
+/* ---------- git 跟踪状态查询 ---------- */
+
+// 返回被 git 跟踪的路径列表；不是 git 仓库或环境里没有 git 时返回 null。
+// 只读操作（ls-files），不会碰 .git 里的引用文件。
+function gitTracked(names) {
+	try {
+		const out = execFileSync("git", ["ls-files", "--", ...names], {
+			cwd: root,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		return out
+			.split("\n")
+			.map((line) => line.trim())
+			.filter(Boolean);
+	} catch {
 		return null;
 	}
 }
@@ -92,8 +116,24 @@ if (manifest) {
 	if ((manifest.id ?? "").includes("obsidian")) {
 		fail("manifest.id 不能包含 obsidian");
 	}
+	if ((manifest.id ?? "").toLowerCase().endsWith("plugin")) {
+		fail(`manifest.id 不能以 plugin 结尾，当前为 ${JSON.stringify(manifest.id)}`);
+	}
 	if (/obsidian|plugin/i.test(manifest.name ?? "")) {
 		fail(`manifest.name 不应包含 Obsidian 或 plugin 字样，当前为 ${JSON.stringify(manifest.name)}`);
+	}
+	// 官方要求：只用基本拉丁字符，标点仅允许连字符、加号、括号。
+	const pluginName = manifest.name ?? "";
+	if (!/^[\x20-\x7E]+$/.test(pluginName)) {
+		fail(`manifest.name 只能使用基本拉丁字符（ASCII），当前为 ${JSON.stringify(pluginName)}`);
+	} else {
+		const stray = pluginName.replace(/[A-Za-z0-9 +()-]/g, "");
+		if (stray) {
+			fail(
+				`manifest.name 含不允许的字符 ${JSON.stringify(stray)}，` +
+					"只允许字母、数字、空格、连字符、加号和括号"
+			);
+		}
 	}
 	if (!/^\d+\.\d+\.\d+$/.test(manifest.version ?? "")) {
 		fail(`manifest.version 必须是三段式 SemVer 且只用数字和点，当前为 ${JSON.stringify(manifest.version)}`);
@@ -111,10 +151,23 @@ if (manifest) {
 	}
 	if (/^this is a plugin/i.test(description)) fail("manifest.description 不要以「this is a plugin」开头");
 
-	if (manifest.fundingUrl === undefined) {
-		// 不接受捐赠就不要写 fundingUrl，这里无需处理
-	} else if (typeof manifest.fundingUrl !== "string") {
-		warn("manifest.fundingUrl 建议写成单个字符串，多平台可用对象形式");
+	// fundingUrl 可以是单个 URL 字符串，也可以是「服务名 → URL」的对象（官方 Manifest 文档）。
+	if (manifest.fundingUrl !== undefined) {
+		const entries =
+			typeof manifest.fundingUrl === "string"
+				? [["fundingUrl", manifest.fundingUrl]]
+				: typeof manifest.fundingUrl === "object" && manifest.fundingUrl !== null
+					? Object.entries(manifest.fundingUrl)
+					: null;
+		if (entries === null) {
+			fail("manifest.fundingUrl 只能是 URL 字符串，或「服务名 → URL」的对象");
+		} else {
+			for (const [key, value] of entries) {
+				if (typeof value !== "string" || !/^https?:\/\//.test(value)) {
+					fail(`manifest.fundingUrl 的 ${key} 不是 http(s) URL：${JSON.stringify(value)}`);
+				}
+			}
+		}
 	}
 
 	for (const field of ["author", "authorUrl"]) {
@@ -143,14 +196,51 @@ if (manifest && versions && !versions[manifest.version]) {
 for (const name of ["README.md", "LICENSE", "manifest.json", "versions.json", "styles.css"]) {
 	if (!existsSync(join(root, name))) fail(`仓库根目录缺少 ${name}`);
 }
-if (existsSync(join(root, "README.md"))) {
-	const readme = readFileSync(join(root, "README.md"), "utf8");
-	if (readme.includes("YOUR_GITHUB_USERNAME")) {
-		fail("README.md 仍是占位符，提交前必须替换成真实的 GitHub 用户名");
+
+const readmePath = join(root, "README.md");
+const readme = existsSync(readmePath) ? readFileSync(readmePath, "utf8") : "";
+if (readme.includes("YOUR_GITHUB_USERNAME")) {
+	fail("README.md 仍是占位符，提交前必须替换成真实的 GitHub 用户名");
+}
+// 开发者政策：账号、付费、网络使用、vault 外文件访问、广告、遥测、闭源
+// 每一项都要在 README 里写明（没有也要写「无」）。
+if (readme && !/disclosur|披露/i.test(readme)) {
+	fail("README.md 里找不到披露章节（Disclosures）。开发者政策要求逐项声明账号、付费、网络服务、vault 外文件访问、广告、遥测、闭源，没有也要写明「无」");
+}
+
+/* ---------- 4. 新流程约束（community.obsidian.md） ---------- */
+
+// 社区目录的扫描器按顺序取第一个存在的构建命令。
+const buildScript = ["build", "build:plugin", "compile"].find(
+	(key) => typeof pkg?.scripts?.[key] === "string"
+);
+if (!buildScript) {
+	fail("package.json 里没有 build / build:plugin / compile 脚本，社区目录的扫描器无法构建插件");
+} else if (buildScript !== "build") {
+	warn(`扫描器会优先使用 "${buildScript}" 而不是 "build"，确认它确实是生产构建命令`);
+}
+
+// 官方要求 main.js 只作为 Release 附件，不进仓库。
+const tracked = gitTracked(["main.js", "main.js.map", "data.json", "_CodeGlancePro", "_ref", "release"]);
+if (tracked === null) {
+	warn("查不到 git 跟踪状态（不是 git 仓库或环境里没有 git），跳过「构建产物是否被误提交」检查");
+} else {
+	if (tracked.includes("main.js")) {
+		fail("main.js 被 git 跟踪了。官方要求 main.js 不进仓库，只作为 GitHub Release 附件分发");
+	}
+	for (const unwanted of ["data.json", "_CodeGlancePro", "_ref", "release"]) {
+		const hit = tracked.find((path) => path === unwanted || path.startsWith(`${unwanted}/`));
+		if (hit) fail(`${hit} 被 git 跟踪了，这是本地工作产物，不应提交`);
 	}
 }
 
-/* ---------- 4. 构建产物一致性 ---------- */
+// 打 tag 自动建 Release 的工作流（官方文档推荐，并会生成产物溯源证明）。
+const workflowPath = join(root, ".github", "workflows", "release.yml");
+if (!existsSync(workflowPath)) {
+	warn("缺少 .github/workflows/release.yml：目前只能手工建 Release，容易漏传附件或 tag 与版本对不上");
+}
+
+/* ---------- 5. 构建产物一致性 ---------- */
 
 const pluginId = manifest?.id ?? "code-block-auto-collapse";
 const version = manifest?.version ?? "0.0.0";
@@ -206,10 +296,13 @@ if (!existsSync(zipPath)) {
 	}
 }
 
-/* ---------- 5. 源码目录卫生 ---------- */
+/* ---------- 6. 源码目录卫生 ---------- */
 
 if (existsSync(join(root, "_CodeGlancePro"))) {
 	warn("_CodeGlancePro/ 存在于仓库内，确认它已被 .gitignore 排除，不要提交");
+}
+if (existsSync(join(root, "_ref"))) {
+	warn("_ref/ 存在于仓库内（官方文档镜像），确认它已被 .gitignore 排除，不要提交");
 }
 if (existsSync(join(root, "data.json"))) {
 	warn("根目录有 data.json（插件本地设置），确认不要提交");

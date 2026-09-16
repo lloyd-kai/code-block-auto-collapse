@@ -8,6 +8,7 @@ message format, versioning policy, and issue conventions used in this repository
 - [Versioning](#versioning)
 - [Issues](#issues)
 - [Pull requests](#pull-requests)
+- [Publishing to the community directory](#publishing-to-the-community-directory)
 - [Local checks](#local-checks)
 
 ## Branch model (GitFlow)
@@ -184,6 +185,10 @@ problem you have not described.
 
 ## Pull requests
 
+Pull requests here are **internal** — they move work between branches in this
+repository. They are not how the plugin is published; that happens through the
+community directory, described in the next section.
+
 1. Branch off `develop` following the naming rules above.
 2. Keep the pull request focused on one thing. Two unrelated changes are two
    pull requests.
@@ -194,6 +199,38 @@ problem you have not described.
 
 A pull request into `main` (from `release/*` or `hotfix/*`) must also update
 `versions.json` and `CHANGELOG.md`.
+
+## Publishing to the community directory
+
+Listing in the [Obsidian community directory](https://community.obsidian.md) is
+done through a **web form**, not a pull request. The older process — appending
+an entry to `community-plugins.json` in `obsidianmd/obsidian-releases` and
+waiting for a `Ready for review` label — has been retired and is no longer
+mentioned anywhere in the official developer docs.
+
+The short version, once a `release/*` branch has landed on `main`:
+
+1. Tag `main` with the exact `manifest.version`, no `v` prefix:
+   `git tag -a 1.0.1 -m "1.0.1" && git push origin 1.0.1`.
+2. `.github/workflows/release.yml` builds, runs lint and tests, generates a
+   build provenance attestation, and opens a **draft** release with the three
+   runtime files attached. Add the notes and publish it.
+3. Sign in at [community.obsidian.md](https://community.obsidian.md) with an
+   Obsidian account, connect GitHub under **Profile → GitHub**, and submit the
+   repository URL under **Plugins → New plugin**.
+
+Only the initial submission needs the form. After that, a new release is all it
+takes — the directory detects it on its own schedule.
+
+Before submitting, run `npm run validate`. It asserts the manifest constraints,
+the five-way version agreement, the artifact hashes, and the rules the
+directory scanner applies (`main.js` must not be tracked by Git, the README must
+carry a disclosures section, `package.json` must expose a build script the
+scanner can find).
+
+The full walkthrough — scanner result groups, listing metadata, screenshot
+specs, private source repositories — is in
+[PLUGIN_DEVELOPMENT.md § 13](PLUGIN_DEVELOPMENT.md).
 
 ## Local checks
 
