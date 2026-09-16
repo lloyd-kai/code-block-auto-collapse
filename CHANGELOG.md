@@ -9,6 +9,25 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+### Added
+
+- `.github/workflows/release.yml`: pushing a tag now builds the plugin, runs the
+  official ESLint rule set and the smoke tests, generates a build provenance
+  attestation, and opens a draft GitHub release with `main.js`, `manifest.json`,
+  and `styles.css` attached. The workflow fails outright if the tag does not
+  match `manifest.version`, since Obsidian locates a release by exact tag match.
+
+### Changed
+
+- Submission documentation rewritten for the community directory's web form.
+  The `obsidian-releases` pull request process — appending to
+  `community-plugins.json` and waiting for a `Ready for review` label — has been
+  retired and is no longer mentioned in the official developer docs.
+- `npm run validate` now also asserts the rules the directory scanner applies:
+  `main.js` must not be tracked by Git, the README must carry a disclosures
+  section, `package.json` must expose a build script the scanner can find, and
+  `id` must not end with `plugin`.
+
 ## [1.0.0] - 2026-09-16
 
 First public release.

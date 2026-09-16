@@ -77,6 +77,7 @@ tools/package-release.mjs             Syncs release/ and packs the release ZIP
 tools/validate-submission.mjs         Submission checks (manifest constraints, version agreement, artifact hashes)
 tools/smoke-test.mjs                  Pure-logic smoke tests
 eslint.config.mjs                     ESLint config matching the official community plugin review
+.github/workflows/release.yml         Tag-driven release: build, attest, draft the GitHub release
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/     Ready-to-copy plugin directory
 code-block-auto-collapse-<version>.zip  Release archive
@@ -88,7 +89,7 @@ code-block-auto-collapse-<version>.zip  Release archive
 - `npm test` runs the smoke tests for the geometry, text parsing, and weight tables (no DOM required).
 - `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports zero errors and two advisory warnings about the pre-1.13 settings API — see [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md).
 - `npm run release` builds, syncs `release/code-block-auto-collapse/`, and packs `code-block-auto-collapse-<version>.zip` from the same in-memory artifacts — so the three can never drift apart.
-- `npm run validate` checks the submission requirements mechanically: manifest field constraints, version agreement across `manifest.json` / `package.json` / `versions.json` / the ZIP name, and that the root `main.js`, the `release/` copy, and the copy inside the ZIP are byte-identical.
+- `npm run validate` checks the submission requirements mechanically: manifest field constraints, version agreement across `manifest.json` / `package.json` / `versions.json` / the ZIP name, and that the root `main.js`, the `release/` copy, and the copy inside the ZIP are byte-identical. It also enforces the rules the community directory scanner applies — `main.js` must not be tracked by Git, the README must carry a disclosures section, and `package.json` must expose a build script the scanner can find.
 - `npm run preflight` runs `lint` → `test` → `release` → `validate` in one go. This is the command to run before every release.
 - `npm run weights` regenerates `src/render/character-weights.ts` from the upstream [CodeGlance Pro](https://github.com/Nasller/CodeGlancePro) source. It needs a local clone, which is **not** shipped with this repo — clone it first:
   `git clone --depth 1 https://github.com/Nasller/CodeGlancePro.git _CodeGlancePro`.
@@ -113,6 +114,20 @@ Because step 3 and step 4 read from one source, the ZIP, the `release/` director
 
 The version comes from `manifest.json`; `package.json` and `versions.json` should be bumped alongside it. The ZIP is written to the repository root and the version must match the Git tag (no `v` prefix). See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full release checklist.
 
+### Publishing to the community directory
+
+The plugin is listed in the [Obsidian community directory](https://community.obsidian.md). Submitting goes through the directory's web form — **not** through a pull request against `obsidian-releases`, which is the older process and no longer used.
+
+1. Push a tag matching `manifest.version` exactly (no `v` prefix). `.github/workflows/release.yml` then builds the plugin, generates a build provenance attestation, and opens a **draft** release with `main.js`, `manifest.json`, and `styles.css` attached. Add the release notes and publish it. The workflow refuses to run if the tag and the manifest version disagree.
+2. Sign in at [community.obsidian.md](https://community.obsidian.md) with an **Obsidian account**, then connect your GitHub account under **Profile → GitHub**. The directory uses that connection to verify you own the repository, so it is required before you can submit.
+3. Open **Plugins → New plugin**, enter the repository URL, and accept the [developer policies](https://docs.obsidian.md/Community+directory/Developer+policies).
+
+The directory then scans the manifest, the release assets, the source code, and the build. Those four groups each report errors, warnings, recommendations, or passes, and an error blocks installation from Obsidian until it is resolved. **Review branch** previews a scan against any branch, tag, or commit — no release required — which is the fastest way to check a fix.
+
+Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The full walkthrough, including listing metadata and screenshots, is in [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) § 13.
+
+Only the initial submission uses the form. After that, publishing a new release is all it takes.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. In short:
@@ -126,7 +141,7 @@ Changes land on `develop` and reach `main` through a `release/*` branch, which i
 
 ## Disclosures
 
-Obsidian's [developer policies](https://docs.obsidian.md/Developer+policies) require plugins to declare anything that touches the user's data, network, or money. This plugin declares all of the following as **none**:
+Obsidian's [developer policies](https://docs.obsidian.md/Community+directory/Developer+policies) require plugins to declare anything that touches the user's data, network, or money. This plugin declares all of the following as **none**:
 
 | Item | Status |
 |---|---|
@@ -226,9 +241,23 @@ MIT — see [LICENSE](LICENSE).
 - `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
 - `npm run preflight` —— `lint → test → release → validate`，发版前跑这一条。
 
+## 发布与上架
+
+插件已列入 [Obsidian 社区目录](https://community.obsidian.md)。提交走目录的**网页表单**，不是往 `obsidian-releases` 提 PR —— 那是已经废弃的旧流程。
+
+1. 推送与 `manifest.version` **完全一致**的 tag（不带 `v` 前缀）。`.github/workflows/release.yml` 会自动构建、生成构建溯源证明，并建一个 **draft** Release 附上 `main.js`、`manifest.json`、`styles.css` 三个文件。补好发布说明后手动发布。tag 与版本号不一致时工作流会直接失败。
+2. 用 **Obsidian 账号**登录 [community.obsidian.md](https://community.obsidian.md)，在 **Profile → GitHub** 关联 GitHub 账号。目录靠这个确认仓库归属，**不关联就无法提交**。
+3. 侧栏 **Plugins → New plugin**，填仓库地址，同意[开发者政策](https://docs.obsidian.md/Community+directory/Developer+policies)。
+
+之后目录会扫描 manifest、Release 附件、源码与构建，分四组给出错误 / 警告 / 建议 / 通过；存在错误时插件无法从 Obsidian 内安装。**Review branch** 可以在不发 Release 的情况下对任意分支或 commit 预览扫描结果，是验证修复最快的方式。
+
+提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) 第 13 节。
+
+只有首次上架需要走表单，之后每次更新只需发布新的 Release。
+
 ## 隐私与合规声明
 
-Obsidian 的[开发者政策](https://docs.obsidian.md/Developer+policies)要求插件声明任何涉及用户数据、网络或付费的行为。本插件全部声明为**无**：
+Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Developer+policies)要求插件声明任何涉及用户数据、网络或付费的行为。本插件全部声明为**无**：
 
 | 项目 | 状态 |
 |---|---|
