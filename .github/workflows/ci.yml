@@ -1,0 +1,93 @@
+# 每次推送与 PR 都跑一遍 lint / test / build，并且**同时跑 Linux 与 Windows**。
+#
+# 为什么必须两个平台：本插件的开发机是 Windows，而 GitHub Actions 的发布跑在
+# ubuntu-latest。只在一个平台上验证过的代码，很容易把平台差异带进发布流程。
+# 真实案例：tools/smoke-test.mjs 曾用 `new URL(...).pathname.replace(/^\//, "")`
+# 把文件 URL 转成本地路径 —— Windows 下得到 `C:/Users/...`（碰巧还是绝对路径），
+# Linux 下得到 `home/runner/...`（不以 ./ 开头的裸说明符），esbuild 直接
+# "Could not resolve" 退出。本地 38/38 全绿，打 tag 后 release 工作流挂在
+# Lint and test 这一步。平台矩阵就是用来挡住这类"只在本地是对的"的代码。
+#
+# 转路径一律用 node:url 的 fileURLToPath / pathToFileURL，不要手写 pathname。
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+# 同一分支连续推送时取消掉旧的运行，省额度也少噪音。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, test and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 一个平台挂了也把另一个跑完，便于一次看清差异。
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  package:
+    name: Package and validate submission
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # release 会 build，并保证「根目录 main.js / release/ 目录 / ZIP 内」
+      # 三份产物哈希一致；validate 再按官方提交要求逐条核对 manifest 与 ZIP 结构。
+      # 这两步就是自动审核扫描器会看的东西，别等提交了才发现。
+      - name: Build, package and validate
+        run: npm run release
+
+      - name: Validate submission constraints
+        run: npm run validate
+
+      - name: Upload release zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: code-block-auto-collapse-*.zip
+          if-no-files-found: error
