@@ -1,0 +1,80 @@
+# 打 tag 即自动构建并创建 GitHub Release。
+#
+# 为什么需要它：社区目录要求 Release 的 tag 与 manifest.json 的 version 完全一致，
+# 且附件必须是 main.js / manifest.json / styles.css 三个文件。手工上传很容易漏文件或
+# 版本对不上，而这个错误要到用户在 Obsidian 里装不上时才会被发现。
+#
+# 另外生成 artifact attestation（构建溯源证明）——官方文档推荐提交插件到社区目录时启用，
+# 它把「这份产物确实由该提交构建出来」这件事签名记录下来。
+#
+# 首次使用前：仓库 Settings → Actions → General → Workflow permissions
+# 选择 "Read and write permissions"，否则 gh release create 会 403。
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 创建 Release
+      id-token: write # 签名 attestation
+      attestations: write # 写入 attestation
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      # Obsidian 用「tag 与 manifest.version 精确相等」来定位 Release，
+      # 对不上就等于这个版本永远不会被任何用户装到。先挡住，别等发完才发现。
+      - name: Verify the tag matches manifest.version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          version="$(node -p "require('./manifest.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag '$tag' 与 manifest.json 的 version '$version' 不一致。Obsidian 按 tag 精确匹配 Release，对不上则该版本无法安装。"
+            exit 1
+          fi
+          echo "tag $tag 与 manifest.json 一致。"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 发版前先过一遍官方规则集与纯逻辑测试。任一失败就不该产出 Release。
+      - name: Lint and test
+        run: |
+          npm run lint
+          npm test
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+
+          # --draft：先建草稿，人工补发布说明后再 Publish release。
+          gh release create "$tag" \
+            --title="$tag" \
+            --draft \
+            main.js manifest.json styles.css
