@@ -24,7 +24,7 @@ body:
     attributes:
       label: Plugin version
       description: Settings → Community plugins → Code Block Auto Collapse.
-      placeholder: "3.0.0"
+      placeholder: "1.0.0"
     validations:
       required: true
 

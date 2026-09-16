@@ -1,8 +1,10 @@
 # Code Block Auto Collapse
 
-**Version 3.0.0** · requires Obsidian **1.8.7** or newer · desktop and mobile
+**English** · [中文](#中文说明)
 
-An Obsidian plugin that keeps long fenced code blocks compact in Reading View and gives very long blocks a real code minimap for navigation.
+**Version 1.0.0** · requires Obsidian **1.8.7** or newer · desktop and mobile
+
+A long fenced code block can swallow a whole note. This plugin keeps code blocks compact in Reading View and gives the very long ones a real code minimap, so you can still see the shape of the code and jump around it without scrolling past hundreds of lines.
 
 ## What it does
 
@@ -42,13 +44,13 @@ The interface follows Obsidian's own language: it is English by default and swit
 | Interaction | click behavior (code position / mouse position), jump on, scroll only, hover preview, wheel moves preview |
 | Rendering | syntax highlighting, markers, marker pattern, marker font scale |
 
-## Install locally
+## Install
 
-### Use the release ZIP
+### From the release ZIP
 
-Unzip `code-block-auto-collapse-3.0.0.zip` directly into `<vault>/.obsidian/plugins/`. The archive contains the `code-block-auto-collapse` plugin directory with all runtime files.
+Unzip `code-block-auto-collapse-1.0.0.zip` directly into `<vault>/.obsidian/plugins/`. The archive contains the `code-block-auto-collapse` plugin directory with all runtime files.
 
-The ZIP holds exactly three files — `main.js`, `manifest.json`, and `styles.css` — under a single `code-block-auto-collapse/` directory. It is produced by `npm run release` (see below), so it always matches the current build.
+The ZIP holds exactly three files — `main.js`, `manifest.json`, and `styles.css` — under a single `code-block-auto-collapse/` directory. It is produced by `npm run release`, so it always matches the current build.
 
 ### Build from source
 
@@ -84,7 +86,7 @@ code-block-auto-collapse-<version>.zip  Release archive
 
 - `npm run build` runs `tsc --noEmit` first, then bundles with esbuild.
 - `npm test` runs the smoke tests for the geometry, text parsing, and weight tables (no DOM required).
-- `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports zero errors and two advisory warnings about the pre-1.13 settings API — see [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md#13-提交到官方社区插件目录).
+- `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports zero errors and two advisory warnings about the pre-1.13 settings API — see [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md).
 - `npm run release` builds, syncs `release/code-block-auto-collapse/`, and packs `code-block-auto-collapse-<version>.zip` from the same in-memory artifacts — so the three can never drift apart.
 - `npm run validate` checks the submission requirements mechanically: manifest field constraints, version agreement across `manifest.json` / `package.json` / `versions.json` / the ZIP name, and that the root `main.js`, the `release/` copy, and the copy inside the ZIP are byte-identical.
 - `npm run preflight` runs `lint` → `test` → `release` → `validate` in one go. This is the command to run before every release.
@@ -148,3 +150,105 @@ Found a bug or want a feature? Open an issue at [github.com/lloyd-kai/code-block
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+# 中文说明
+
+[English](#code-block-auto-collapse) · **中文**
+
+**版本 1.0.0** · 需要 Obsidian **1.8.7** 或更高 · 桌面端与移动端
+
+一段长代码会把整篇笔记挤没。这个插件让代码块在阅读视图里保持紧凑，并为特别长的代码块配一个真正的代码缩略图 —— 你既能一眼看出代码的形状，也能直接跳转，不用滚过几百行样板代码。
+
+## 它做什么
+
+**折叠。** 四行及以上的代码块会自动折叠。鼠标移到代码块上会出现切换按钮：**展开代码** 显示全部内容，**收起代码** 再次折叠。点击折叠块的任意位置也能展开，按钮同时支持键盘操作。
+
+**缩略图。** 超过 100 行的代码块会在旁边生成一条导航缩略图。它用 canvas 绘制，采用主题的语法高亮配色，带一个标示可见区域的视窗矩形，以及 MARK/region 标记。你可以：
+
+- 点击缩略图跳到对应位置；
+- 拖拽视窗矩形精确滚动；
+- 悬停预览附近的代码；
+- 拖动内边缘调整宽度；
+- 照常用滚轮滚动文档；
+- 聚焦缩略图后用 `↑` `↓` `PageUp` `PageDown` `Home` `End` 导航。
+
+代码块折叠时缩略图依然可用：它会缩到预览高度，点击它会先展开代码块再跳到那一行。
+
+## 缩略图是怎么画出来的
+
+渲染方式参照 CodeGlance / CodeGlance Pro，这也是缩略图看起来像「文字纹理」而不是一块实心色块的原因：
+
+- 每个源码行映射为 `Pixels Per Line` 行像素（默认 4）。Tab 按四列计算，超过缩略图宽度的行会被裁掉而不是压缩。
+- **Clean** 风格给每个字符填统一的权重；**Accurate** 风格使用从 Courier 字体实测出的字符上下墨迹覆盖率，缩略图能保留文字的形状。
+- 语法颜色取自 Obsidian 已经渲染好的 token；当代码块没有 token span 时，退回到词法识别（字符串、注释、数字、常见关键字）。
+- `Proportional` 保持固定的行距，滚动时平移 canvas 窗口；`Fit` 把整个代码块压缩进可见高度。
+
+所有选项都在 **设置 → Code Block Auto Collapse**，分为五组：折叠、缩略图、视窗、交互、渲染。
+
+界面文案跟随 Obsidian 自身语言：默认英文，当 Obsidian 运行在中文环境时自动切换为中文。除每个代码块上的切换按钮和一个设置页之外，插件不添加任何自己的界面。
+
+## 设置项一览
+
+| 分组 | 选项 |
+|---|---|
+| 折叠 | 触发折叠的最小行数、预览行数 |
+| 缩略图 | 最小/最大行数、排除空白区、每行像素、高度模式、渲染风格、对齐方式、宽度、锁定宽度、自动收窄 |
+| 视窗 | 视窗颜色、边框颜色、边框宽度 |
+| 交互 | 点击行为（按代码位置/按鼠标位置）、跳转时机、仅滚动、悬停预览、滚轮移动预览 |
+| 渲染 | 语法高亮、标记、标记模式、标记字号缩放 |
+
+## 安装
+
+### 用发布包
+
+把 `code-block-auto-collapse-1.0.0.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
+
+包内恰好三个文件 —— `main.js`、`manifest.json`、`styles.css`，位于 `code-block-auto-collapse/` 目录下。它由 `npm run release` 生成，始终与当前构建一致。
+
+### 从源码构建
+
+1. 执行 `npm install`，然后 `npm run build`。
+2. 把 `main.js`、`manifest.json`、`styles.css` 复制到 `<vault>/.obsidian/plugins/code-block-auto-collapse/`。
+3. 在 Obsidian 的第三方插件设置里启用 **Code Block Auto Collapse**。
+
+## 开发
+
+模块划分、用到的 Obsidian API、渲染算法细节、构建与发布流程、以及历次 bug 的成因，都写在 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)（中文）。
+
+分支模型、提交信息格式、版本号规范与 issue 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+常用命令：
+
+- `npm run build` —— `tsc --noEmit` 类型检查 + esbuild 打包。
+- `npm test` —— 纯逻辑冒烟测试（几何、文本解析、权重表），不需要 DOM。
+- `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
+- `npm run preflight` —— `lint → test → release → validate`，发版前跑这一条。
+
+## 隐私与合规声明
+
+Obsidian 的[开发者政策](https://docs.obsidian.md/Developer+policies)要求插件声明任何涉及用户数据、网络或付费的行为。本插件全部声明为**无**：
+
+| 项目 | 状态 |
+|---|---|
+| 网络访问或远程服务 | 无。插件从不发起任何请求。 |
+| 遥测（客户端或服务端） | 无。 |
+| 账号或登录 | 无。 |
+| 付费功能 | 无，全部功能免费开放。 |
+| 广告（动态或静态） | 无。 |
+| 读写 vault 之外的文件 | 无。插件完全不碰文件系统。 |
+| Node.js 或 Electron API | 未使用，因此 `isDesktopOnly` 为 `false`，移动端可用。 |
+| 混淆或仅提供压缩代码 | 无。`main.js` 是由本仓库 `src/` 构建出的可读 esbuild 产物。 |
+
+**插件实际触碰的东西。** 它只装饰 Obsidian 已在阅读视图中渲染好的 DOM，从不写入你的 Markdown 文件，也不修改 vault。卸载插件后，每篇笔记都保持原样。
+
+**第三方代码。** 发布包不含任何第三方运行时代码 —— `main.js` 里只有本项目源码和它链接的 Obsidian API。上游 [CodeGlance Pro](https://github.com/Nasller/CodeGlancePro) 仅作为缩略图渲染算法的参照，不是本项目的一部分，也不随本项目分发。
+
+## 反馈
+
+发现 bug 或想要新功能？到 [github.com/lloyd-kai/code-block-auto-collapse/issues](https://github.com/lloyd-kai/code-block-auto-collapse/issues) 提 issue。
+
+## 许可
+
+MIT —— 见 [LICENSE](LICENSE)。
