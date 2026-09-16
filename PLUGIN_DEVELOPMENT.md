@@ -1,6 +1,6 @@
 # Code Block Auto Collapse：从源码到 Obsidian 发布
 
-本文以当前的 `3.0.0` 版本为例，说明插件的架构、涉及的 Obsidian API、与参考实现（JetBrains 插件 CodeGlance Pro）的对应关系，以及发布流程。文中的路径均相对于项目根目录。
+本文以当前的 `1.0.0` 版本为例，说明插件的架构、涉及的 Obsidian API、与参考实现（JetBrains 插件 CodeGlance Pro）的对应关系，以及发布流程。文中的路径均相对于项目根目录。
 
 ## 1. 插件做了什么
 
@@ -209,7 +209,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 没有移植的部分：VCS / 错误条高亮、书签标记、Diff 编辑器、控制台编辑器、隐藏原生滚动条、悬停滚动条显示缩略图——这些依赖 IDE 的编辑器模型，在阅读视图里没有对应概念。
 
-## 11. 3.0.0 修复与修正
+## 11. 1.0.0 修复与修正
 
 ### 功能性 bug
 
@@ -299,7 +299,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 3. 在干净 vault 里回归测试：短/空/超长代码块、不同语言高亮、frontmatter、深浅主题、窄窗口、折叠展开、缩略图点击/拖拽/调宽/键盘、弹出窗口、禁用插件后 DOM 是否还原、中英文界面各看一遍。
 4. 把插件源码推到 GitHub 公开仓库（根目录含 `README.md`、`LICENSE`、`manifest.json`）。分支模型见 `CONTRIBUTING.md`：`main` 存已发布状态，`develop` 是集成分支，发版走 `release/<version>`，修线上 bug 走 `hotfix/<version>`，合并一律 `--no-ff`。
    > **`main` 必须设为 GitHub 的默认分支，不要设成 `develop`。** `develop` 上的 `manifest.version` 是尚未发布的下一版，Obsidian 找不到对应 Release 时会报 `No release matches your manifest version`。
-5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`3.0.0` 而不是 `v3.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意。
+5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.0` 而不是 `v1.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意。
 6. 编辑 [`community-plugins.json`](https://github.com/obsidianmd/obsidian-releases/edit/master/community-plugins.json)，在数组**末尾**追加一条（注意给上一条补逗号）：
 
    ```json
@@ -377,7 +377,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 README 与 Release 说明面向国际用户，用英文；本文档是内部开发说明，保持中文。
 
-**GitHub Release 说明**（tag `3.0.0`，标题写 `3.0.0`）
+**GitHub Release 说明**（tag `1.0.0`，标题写 `1.0.0`）
 
 ```markdown
 First public release.
@@ -404,7 +404,7 @@ See the README for the full feature list and settings reference.
 This PR adds the plugin "Code Block Auto Collapse".
 
 - Repository: https://github.com/lloyd-kai/code-block-auto-collapse
-- Release: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/3.0.0
+- Release: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/1.0.0
 
 Reading View only. The plugin folds long code blocks and draws a CodeGlance-style code
 minimap beside each folded block for navigation.
@@ -413,7 +413,211 @@ No accounts, no payment, no network requests, no telemetry, no ads, and no acces
 files outside the vault. Fully open source (MIT).
 ```
 
-## 14. 参考资料
+## 14. 待提 issue 草稿
+
+新仓库的 issue 列表是空的。下面这批可以直接粘进 GitHub —— 本环境没有 API token，无法代你创建。每条都基于当前代码的真实状态，**没有虚构 bug**；前两条是真正的技术债，建议先提。
+
+用法：仓库页 → **Issues** → **New issue** → 选对应模板 → 标题和正文照抄 → 提交后按「标签」一栏打标。
+
+### 14.1 Support Live Preview
+
+- **标签**：`enhancement`
+- **为什么值得先提**：这是功能覆盖面最大的缺口，也是 issue 区最常见的期待。
+
+```text
+Title: Support Live Preview
+```
+
+```markdown
+Reading View works, but the plugin does nothing in Live Preview, which is where
+most people actually read and edit code.
+
+The plugin registers only a markdown post-processor
+(`registerMarkdownPostProcessor`), which Obsidian runs for Reading View. Live
+Preview renders code blocks through CodeMirror 6, so folding there needs a
+different mechanism — most likely a CodeMirror extension that decorates the first
+N lines of a code block.
+
+Two things worth deciding before writing code:
+
+- Should the minimap exist in Live Preview at all, or is collapsing enough?
+- How do we avoid fighting the editor's own selection and cursor behaviour?
+```
+
+### 14.2 Adopt the declarative settings API for Obsidian 1.13+
+
+- **标签**：`enhancement`
+- **背景**：见第 13.5 节。当前 `minAppVersion` 是 `1.8.7`，因此必须保留 `display()`，于是 `npm run lint` 常驻 2 条 warning。
+
+```text
+Title: Adopt getSettingDefinitions() for Obsidian 1.13+
+```
+
+```markdown
+`npm run lint` reports two advisory warnings that are a deliberate trade-off, not
+an oversight:
+
+- `settings-tab/prefer-setting-definitions` — settings do not appear in Obsidian's
+  settings search on 1.13.0 or later.
+- `@typescript-eslint/no-deprecated` — `PluginSettingTab.display()` is deprecated
+  since 1.13.0.
+
+They come from `minAppVersion` being `1.8.7`. The official rule set leaves exactly
+two legal states:
+
+| State | Result |
+|---|---|
+| `minAppVersion < 1.13.0` + `display()` | Works on older Obsidian, keeps both warnings (current) |
+| `minAppVersion >= 1.13.0` + `getSettingDefinitions()` | Warnings gone, settings searchable, drops every user below 1.13 |
+
+This issue is the place to decide when to move. Migrating means rewriting
+`src/settings-tab.ts` to return setting definitions and raising `minAppVersion` to
+`1.13.0` in `manifest.json` and `versions.json`.
+```
+
+### 14.3 Remember which code blocks the user expanded
+
+- **标签**：`enhancement`
+
+```text
+Title: Remember expanded code blocks within a session
+```
+
+```markdown
+Every time a note is re-rendered, all code blocks collapse again. If you expand a
+block to read it, switch notes, and come back, you have to expand it a second
+time.
+
+The plugin currently keeps no per-block state at all. A workable scope:
+
+- Key blocks by file path plus the code block's index within the file.
+- Keep the state in memory for the session only. Persisting it to `data.json`
+  would grow without bound and would go stale as notes are edited.
+- Clear the entry when the block's line count changes, since the index is no
+  longer trustworthy at that point.
+```
+
+### 14.4 Measure the rendering cost in notes with many code blocks
+
+- **标签**：`enhancement`
+- **背景**：绘制已经做了窗口化（窗口跟随视窗平移，超长块每帧绘制量恒定），但**单篇笔记内多个代码块**的合计开销从未测过。
+
+```text
+Title: Measure rendering cost in a note with many long code blocks
+```
+
+```markdown
+Painting is windowed per block, so the cost of one very long code block is
+bounded. What has never been measured is a note containing many long blocks at
+once — for example twenty 300-line blocks in a single file.
+
+Worth establishing before optimising anything:
+
+- A repeatable fixture: a generated note with a known number of blocks and lines.
+- Frame timings while scrolling the whole note, on a low-end machine and on
+  mobile.
+- Whether off-screen minimaps should skip painting entirely, and whether that can
+  be done without a visible pop when they scroll into view.
+
+Please post the numbers in this issue before proposing a change, so the fix can be
+judged against a baseline.
+```
+
+### 14.5 Add screenshots and a demo GIF to the README
+
+- **标签**：`documentation`, `good first issue`
+- **背景**：README 目前 0 张图。对这类「视觉收益」明显的插件来说，一张图比一段文字有效得多。
+
+```text
+Title: Add screenshots and a short demo GIF to the README
+```
+
+```markdown
+The README describes the minimap in prose but shows nothing. For a plugin whose
+whole value is visual, that is the single biggest gap in the documentation.
+
+Wanted:
+
+- One screenshot of a collapsed block in a light theme and one in a dark theme.
+- One screenshot of the minimap next to a long block, at a readable size.
+- A short GIF (under ~5 MB) showing click-to-jump and dragging the viewport.
+
+Put them near the top, above "What it does". Images go in a `docs/` or `assets/`
+directory; the README links to them with relative paths.
+```
+
+### 14.6 Document the CSS variables
+
+- **标签**：`documentation`, `good first issue`
+- **背景**：`styles.css` 里已有 8 个变量，但 README 和 `PLUGIN_DEVELOPMENT.md` 都没有列出，主题和 snippet 作者无从得知。
+
+```text
+Title: Document the CSS variables themes and snippets can target
+```
+
+```markdown
+The stylesheet exposes CSS variables that themes and snippets can override, but
+they are not documented anywhere. Anyone who wants to restyle the minimap has to
+read `styles.css`.
+
+The variables currently in use:
+
+- `--cbac-minimap-width`
+- `--cbac-canvas-height`
+- `--cbac-preview-height`
+- `--cbac-fade-height`
+- `--cbac-viewport-color`
+- `--cbac-viewport-color-strong`
+- `--cbac-viewport-border`
+- `--cbac-viewport-border-width`
+
+Add a "Styling" section to the README listing each one, what it controls, and
+whether it is set by the plugin at runtime (several of them are written by the
+script on every layout pass, so overriding them in a snippet may not stick).
+```
+
+### 14.7 Add a copy button to collapsed code blocks
+
+- **标签**：`enhancement`
+
+```text
+Title: Add a copy button to collapsed code blocks
+```
+
+```markdown
+A collapsed block is usually the one you want to copy — you folded it because you
+already know what is in it. Right now you have to expand it first, select the
+text, and copy.
+
+A copy button next to the expand toggle, using `navigator.clipboard.writeText()`,
+would remove those steps. `navigator.clipboard` is a web API, so this stays
+mobile-compatible and `isDesktopOnly` can remain `false`.
+
+Note that Obsidian already shows its own copy button on code blocks; check
+whether the two can coexist without crowding the corner.
+```
+
+### 14.8 Add a command to collapse or expand every code block in a note
+
+- **标签**：`enhancement`
+
+```text
+Title: Add a command to collapse or expand every code block in a note
+```
+
+```markdown
+The per-block toggle is the only control. When you want the whole note folded —
+or the whole note open so you can search it with the browser's own find — you
+have to click every block.
+
+Add two commands, "Collapse all code blocks" and "Expand all code blocks", so they
+can be bound to hotkeys and reached from the command palette.
+
+Remember that Obsidian's guidelines say a plugin must not ship a default hotkey,
+so these should be unbound on install.
+```
+
+## 15. 参考资料
 
 - [Obsidian Plugin Developer Docs](https://docs.obsidian.md/Plugins)
 - [Build a plugin](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
