@@ -1,0 +1,24 @@
+{
+  "name": "code-block-auto-collapse",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --external:obsidian --external:@codemirror/* --format=cjs --platform=node --target=es2018 --charset=utf8 --outfile=main.js --sourcemap",
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --external:obsidian --external:@codemirror/* --format=cjs --platform=node --target=es2018 --charset=utf8 --outfile=main.js --minify",
+    "test": "node tools/smoke-test.mjs",
+    "lint": "eslint src",
+    "validate": "node tools/validate-submission.mjs",
+    "preflight": "npm run lint && npm test && npm run release && npm run validate",
+    "weights": "node tools/generate-character-weights.mjs",
+    "release": "npm run build && node tools/package-release.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
+    "obsidian": "^1.8.7",
+    "tslib": "^2.8.1",
+    "typescript": "^5.0.0"
+  }
+}

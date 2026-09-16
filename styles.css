@@ -1,0 +1,227 @@
+/* Code Block Auto Collapse —— 阅读视图样式
+ *
+ * 变量约定（--cbac-* 由脚本按设置写入）：
+ *   --cbac-preview-height          折叠时保留的高度
+ *   --cbac-minimap-width           缩略图列宽
+ *   --cbac-canvas-height           缩略图（canvas）高度
+ *   --cbac-viewport-color          视窗填充色
+ *   --cbac-viewport-color-strong   悬停 / 拖拽时的视窗填充色
+ *   --cbac-viewport-border         视窗边框色
+ *   --cbac-viewport-border-width   视窗边框厚度
+ */
+
+.code-block-auto-collapse {
+  --cbac-preview-height: 12em;
+  --cbac-minimap-width: 120px;
+  --cbac-canvas-height: 200px;
+  --cbac-viewport-color: rgba(160, 160, 160, 0.2);
+  --cbac-viewport-color-strong: rgba(160, 160, 160, 0.35);
+  --cbac-viewport-border: #00ff00;
+  --cbac-viewport-border-width: 0px;
+  --cbac-fade-height: 3.5em;
+  position: relative;
+  display: block;
+  margin: 1em 0;
+}
+
+.code-block-auto-collapse pre {
+  margin: 0;
+  min-width: 0;
+}
+
+/* ---------- 折叠状态 ---------- */
+
+.code-block-auto-collapse.is-collapsed pre {
+  max-height: var(--cbac-preview-height);
+  overflow: hidden;
+}
+
+.code-block-auto-collapse__fade {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--cbac-fade-height);
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--code-background, var(--background-primary)));
+}
+
+.code-block-auto-collapse.is-collapsed .code-block-auto-collapse__fade {
+  display: block;
+}
+
+.code-block-auto-collapse.has-code-minimap .code-block-auto-collapse__fade {
+  right: var(--cbac-minimap-width);
+}
+
+.code-block-auto-collapse__expand {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 0.55em;
+  transform: translateX(-50%);
+  padding: 0.25em 0.7em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  /* 用透明度而不是 display:none，保证键盘可以 Tab 到按钮 */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-in-out;
+}
+
+.code-block-auto-collapse:hover .code-block-auto-collapse__expand,
+.code-block-auto-collapse:focus-within .code-block-auto-collapse__expand {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- 缩略图 ---------- */
+
+.code-block-auto-collapse.has-code-minimap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, var(--cbac-minimap-width));
+  align-items: start;
+}
+
+.code-block-auto-collapse.has-code-minimap.is-minimap-left {
+  grid-template-columns: minmax(72px, var(--cbac-minimap-width)) minmax(0, 1fr);
+}
+
+.code-block-auto-collapse.is-minimap-left .code-block-auto-collapse__minimap {
+  order: -1;
+}
+
+.code-block-auto-collapse__minimap {
+  position: sticky;
+  top: 10vh;
+  z-index: 1;
+  align-self: start;
+  box-sizing: border-box;
+  width: var(--cbac-minimap-width);
+  height: var(--cbac-canvas-height);
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--code-background, var(--background-primary));
+  opacity: 0.65;
+  transition: opacity 120ms ease-in-out;
+  touch-action: none;
+}
+
+.code-block-auto-collapse__minimap:hover,
+.code-block-auto-collapse__minimap:focus-within {
+  opacity: 1;
+}
+
+.code-block-auto-collapse__minimap.can-jump {
+  cursor: pointer;
+}
+
+.code-block-auto-collapse__minimap.is-resize-hover {
+  cursor: col-resize;
+}
+
+.code-block-auto-collapse__minimap:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* 宽度调整热区提示 */
+.code-block-auto-collapse__minimap.is-resize-hover::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--interactive-accent);
+}
+
+.code-block-auto-collapse.is-minimap-left .code-block-auto-collapse__minimap.is-resize-hover::after {
+  left: auto;
+  right: 0;
+}
+
+.code-block-auto-collapse__minimap-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.code-block-auto-collapse__minimap-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: var(--cbac-viewport-border-width) solid var(--cbac-viewport-border);
+  background: var(--cbac-viewport-color);
+  cursor: grab;
+  touch-action: none;
+}
+
+.code-block-auto-collapse__minimap-viewport:hover,
+.code-block-auto-collapse__minimap-viewport.is-dragging {
+  background: var(--cbac-viewport-color-strong);
+}
+
+.code-block-auto-collapse__minimap-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+/* ---------- 悬停代码预览 ---------- */
+
+.code-block-auto-collapse__lens {
+  position: absolute;
+  z-index: 3;
+  right: calc(var(--cbac-minimap-width) + 10px);
+  display: none;
+  width: min(420px, 55%);
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.2));
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.code-block-auto-collapse.is-minimap-left .code-block-auto-collapse__lens {
+  right: auto;
+  left: calc(var(--cbac-minimap-width) + 10px);
+}
+
+.code-block-auto-collapse__lens.is-visible {
+  display: block;
+}
+
+.code-block-auto-collapse__lens-line {
+  display: flex;
+  gap: 0.75em;
+  padding: 0 0.5em;
+  white-space: pre;
+}
+
+.code-block-auto-collapse__lens-line.is-current {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+
+.code-block-auto-collapse__lens-number {
+  min-width: 2.5em;
+  color: var(--text-faint);
+  text-align: right;
+  user-select: none;
+}
+
+.code-block-auto-collapse__lens-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

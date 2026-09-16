@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Settings reference
+    url: https://github.com/lloyd-kai/code-block-auto-collapse#settings-overview
+    about: Every setting is documented in the README. Worth a look before filing a bug.
+  - name: Contributing guide
+    url: https://github.com/lloyd-kai/code-block-auto-collapse/blob/main/CONTRIBUTING.md
+    about: Branch naming, commit format, and the versioning policy.

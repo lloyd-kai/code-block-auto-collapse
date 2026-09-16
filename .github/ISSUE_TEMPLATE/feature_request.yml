@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest a capability the plugin does not have
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the solution. A request that starts from a
+        problem can be solved in more than one way; a request that starts from a
+        solution can only be accepted or rejected.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this has not been requested already.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does the plugin get in the way?
+      placeholder: "I compare two long functions side by side, and scrolling one always moves the other..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: Including anything the existing settings already allow.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which part of the plugin does this touch?
+      options:
+        - Collapsing behaviour
+        - Minimap rendering
+        - Minimap interaction
+        - Settings
+        - Interface text or accessibility
+        - Other
+    validations:
+      required: true
