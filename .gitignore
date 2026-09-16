@@ -20,6 +20,9 @@ _CodeGlancePro/
 # 本地的参考资料目录，不是插件源码
 _ref/
 
+# 官方文档的中文整理稿（本地参考用，非插件源码；内容版权属 Obsidian）
+PLUGIN_SUBMISSION_ZH.md
+
 # 本地工作目录：解压出来的发布包副本、旧版本备份
 backup/
 

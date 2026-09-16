@@ -257,11 +257,15 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 需要人工在测试 vault 中回归的场景：短/空/超长代码块、不同语言高亮、frontmatter、深浅主题、窄窗口、折叠与展开、缩略图点击/拖拽/调宽/键盘、弹出窗口、插件禁用后 DOM 是否还原。
 
-## 13. 提交到官方社区插件目录
+## 13. 提交到官方社区目录
 
-官方资料：[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)、[Submission requirements](https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins)、[Plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines)、[Developer policies](https://docs.obsidian.md/Developer+policies)。目录数据与 PR 仓库是 [`obsidianmd/obsidian-releases`](https://github.com/obsidianmd/obsidian-releases)。
+官方资料：[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)、[Submission requirements for plugins](https://docs.obsidian.md/Community+directory/Submission+requirements+for+plugins)、[Developer policies](https://docs.obsidian.md/Community+directory/Developer+policies)、[Set up and claim](https://docs.obsidian.md/Community+directory/Set+up+and+claim)。
 
-只提交一次：合并后用户直接在 Obsidian 内从 GitHub 拉新版本，后续发版不再需要 PR。
+> ⚠️ **提交方式已经改变，网上的旧教程全部作废。**
+> 过去是「向 `obsidianmd/obsidian-releases` 提 PR、往 `community-plugins.json` 追加一条、等机器人打 `Ready for review` 标签」。**这套流程已经废弃** —— 新版官方文档里 `community-plugins.json`、`obsidian-releases`、`Ready for review` 这些概念**已经完全不再出现**。
+> 现在改为在 **[community.obsidian.md](https://community.obsidian.md)** 用 **Obsidian 账号**登录、关联 GitHub 账号后网页提交。
+
+只提交一次：进入目录后，用户直接在 Obsidian 内从 GitHub 拉新版本，后续发版只需递增版本 + 建 Release，目录会周期性自动检测。
 
 ### 13.1 作者信息
 
@@ -284,7 +288,9 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 ### 13.3 提交步骤
 
-1. 递增版本：改 `manifest.json` 的 `version`，同步 `package.json`、`versions.json`、README 顶部版本行与本文。
+**A. 准备仓库与 Release**
+
+1. 递增版本：改 `manifest.json` 的 `version`，同步 `package.json`、`versions.json`、`CHANGELOG.md`、README 顶部版本行与本文。
 2. 跑通检查：
 
    ```bash
@@ -298,24 +304,46 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
    需要单独跑某一步时：`npm run lint`、`npm test`、`npm run release`、`npm run validate`。
 3. 在干净 vault 里回归测试：短/空/超长代码块、不同语言高亮、frontmatter、深浅主题、窄窗口、折叠展开、缩略图点击/拖拽/调宽/键盘、弹出窗口、禁用插件后 DOM 是否还原、中英文界面各看一遍。
 4. 把插件源码推到 GitHub 公开仓库（根目录含 `README.md`、`LICENSE`、`manifest.json`）。分支模型见 `CONTRIBUTING.md`：`main` 存已发布状态，`develop` 是集成分支，发版走 `release/<version>`，修线上 bug 走 `hotfix/<version>`，合并一律 `--no-ff`。
-   > **`main` 必须设为 GitHub 的默认分支，不要设成 `develop`。** `develop` 上的 `manifest.version` 是尚未发布的下一版，Obsidian 找不到对应 Release 时会报 `No release matches your manifest version`。
-5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.0` 而不是 `v1.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意。
-6. 编辑 [`community-plugins.json`](https://github.com/obsidianmd/obsidian-releases/edit/master/community-plugins.json)，在数组**末尾**追加一条（注意给上一条补逗号）：
 
-   ```json
-   {
-     "id": "code-block-auto-collapse",
-     "name": "Code Block Auto Collapse",
-     "author": "lloyd-kai",
-     "description": "Collapse long code blocks in Reading View and navigate them with a syntax-colored code minimap.",
-     "repo": "lloyd-kai/code-block-auto-collapse"
-   }
-   ```
+   > **目录读的是「默认分支 HEAD 上的 `manifest.json`」**，所以 `main` 必须是 GitHub 的默认分支，不要设成 `develop`。`develop` 上的 `manifest.version` 是尚未发布的下一版，目录会找不到对应 Release（旧流程下这个报错是 `No release matches your manifest version`，新流程下表现为条目一直装不上）。
+5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.0` 而不是 `v1.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意 —— 目录不使用 Release 名称。
 
-   `id`、`name`、`author`、`description` 必须与 `manifest.json` 逐字一致——这四个字段决定用户在插件浏览器里看到什么、能不能搜到。`repo` 是 `owner/repo`，不是完整 URL。
-7. Commit → **Propose changes** → **Create pull request** → 在描述区选 **Preview** → **Community Plugin**，勾选模板里的复选框，PR 标题写成 `Add [Code Block Auto Collapse] plugin`。
-8. 等机器人验证。出现 **Ready for review** 标签表示自动验证通过；出现 **Validation failed** 就去逐条解决，直到标签变成 Ready for review。
-9. 人工审阅会在 PR 里留言。按意见改完、更新 Release 附件、在 PR 里回复已处理，**不要另开新 PR**。审阅时长取决于团队排期，无法预估。
+**B. 在社区目录里提交**
+
+6. 打开 <https://community.obsidian.md>，右上角 **Sign in**，用 **Obsidian 账号**登录（不是 GitHub 账号；没有就按提示创建）。登录后落在 **Community profile** 页。
+7. 在 **GitHub** 一项下选 **Connect** 关联 GitHub 账号。目录靠这个验证你确实是所提交仓库的所有者，**不关联就无法提交**。
+8. 侧栏进 **Plugins** → **New plugin**，填两项：
+   - **GitHub repository URL**：`https://github.com/lloyd-kai/code-block-auto-collapse`
+   - **Owner**：选 **Myself**（也可选你所属的组织；不必与仓库的 GitHub 所有者一致）
+9. 阅读并同意开发者政策，确认你会在无法继续维护时移除或转移该插件，然后 **Submit**。
+
+**C. 处理审核反馈**
+
+10. 提交后目录会**自动审核**，并针对需要修正的地方给出指引。处理方式是**改仓库 + 递增版本 + 发新 GitHub Release**，目录据此重新审核。
+11. **自动审核的错误全部解决之前，插件无法从 Obsidian 内安装。** 描述可以随时编辑并 **Publish**，但那不影响能否安装。
+12. 不想等周期性检查：条目 **`...`** 菜单里选 **Request review** 强制立即重扫，选 **Check for new releases** 立刻检测新 Release。
+13. 审阅时长取决于团队排期，无法预估。
+
+**D. 上线之后**
+
+14. 在论坛 [Share & showcase](https://forum.obsidian.md/c/share-showcase/9) 发帖，在 Discord 的 `#updates` 频道宣布（需要 `developer` 角色）。
+
+### 13.3.1 条目管理（上线后常用）
+
+侧栏 **Plugins** 页 → **Your entries** → 选中条目。
+
+| 功能 | 说明 |
+|---|---|
+| **Edit listing** | 改图标、短/长描述、分类、付费类型、截图。 |
+| **Request review** / **Check for new releases** | 在 `...` 菜单里，强制立即重扫 / 立即检测新 Release。 |
+| **Review branch** | 在**不创建 Release 的情况下**对任意分支、tag 或 commit SHA 预览扫描结果（留空用默认分支），选 **Run preview scan**。 |
+| **Add contributor** | 署名贡献者。**只给公开署名，不授予编辑权限，也不改变条目归属。** |
+| **Transfer ownership** | 转移给组织，或按**社区目录 handle**（不是 GitHub handle）转给他人。 |
+| **Archive** | 下架并阻止新安装；同菜单可选 **Unarchive** 恢复。 |
+
+**截图规格**：桌面端最多 5 张、1200×800；移动端最多 5 张、900×1600；JPEG / PNG / WebP，单张 ≤5 MB。
+
+**README 摘录**：条目页会显示 README 的摘要，相对链接与图片（如 `./images/screenshot.png`）会被自动改写为指向你的仓库。所以 README 里的图片用相对路径即可，不需要写完整 URL。
 
 ### 13.4 提交前检查清单
 
@@ -328,7 +356,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 **manifest.json**
 
-- [ ] `id` 唯一、全小写连字符，与插件目录名一致，且不含 `obsidian`（提交前在 `community-plugins.json` 里搜一遍确认没重名）。
+- [ ] `id` 唯一、全小写连字符，与插件目录名一致，且不含 `obsidian`（提交前到 <https://community.obsidian.md/plugins> 搜一遍确认没重名）。
 - [ ] `name` 不含 `Obsidian`、`plugin` 等容易误认为官方的字样。
 - [ ] `description` 以动词开头、不超过 250 字符、以句号结尾、无 emoji、无特殊字符，`Obsidian` / `Markdown` / `PDF` 等专有名词大小写正确。
 - [ ] 不接受捐赠就**不要**写 `fundingUrl`；要写就指向 GitHub Sponsors 或 Buy Me a Coffee 这类服务。
@@ -398,16 +426,20 @@ draggable, and resizable.
 See the README for the full feature list and settings reference.
 ```
 
-**PR 描述**（勾完模板复选框后，把这段贴在下面；两处 URL 换成你的用户名）
+**社区目录条目描述**（在 `community.obsidian.md` 的 **Edit listing** 里填）
+
+短描述 —— 直接与 `manifest.description` 保持一致最省事，它已经满足「≤250 字符、以句号结尾、无 emoji」的要求：
+
+```text
+Collapse long code blocks in Reading View and navigate them with a syntax-colored code minimap.
+```
+
+长描述：
 
 ```markdown
-This PR adds the plugin "Code Block Auto Collapse".
-
-- Repository: https://github.com/lloyd-kai/code-block-auto-collapse
-- Release: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/1.0.0
-
-Reading View only. The plugin folds long code blocks and draws a CodeGlance-style code
-minimap beside each folded block for navigation.
+A long fenced code block can swallow a whole note. This plugin folds code blocks in
+Reading View and draws a CodeGlance-style minimap beside the very long ones, so you can
+see the shape of the code and jump around it without scrolling past hundreds of lines.
 
 No accounts, no payment, no network requests, no telemetry, no ads, and no access to
 files outside the vault. Fully open source (MIT).
