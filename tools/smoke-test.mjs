@@ -4,16 +4,24 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import esbuild from "esbuild";
+
+// 转路径一律走 fileURLToPath / pathToFileURL，不要手写 `new URL(...).pathname`。
+// Windows 下 pathname 是 `/C:/Users/...`，砍掉首斜杠碰巧还是绝对路径，本地全绿；
+// Linux 下是 `/home/runner/work/...`，砍掉首斜杠就成了不以 ./ 开头的裸说明符，
+// esbuild 会当包名去 node_modules 里找，直接 "Could not resolve" 报错退出。
+// 这个差异曾在 CI 上让 npm test 挂掉（同一份代码本地 38/38 通过）。
+const srcPath = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 
 const tempDir = mkdtempSync(join(tmpdir(), "cbac-smoke-"));
 const entry = join(tempDir, "entry.ts");
 writeFileSync(
 	entry,
 	[
-		`export * from ${JSON.stringify(new URL("../src/minimap/geometry.ts", import.meta.url).pathname.replace(/^\//, ""))};`,
-		`export * from ${JSON.stringify(new URL("../src/util/text.ts", import.meta.url).pathname.replace(/^\//, ""))};`,
-		`export * from ${JSON.stringify(new URL("../src/render/character-weights.ts", import.meta.url).pathname.replace(/^\//, ""))};`,
+		`export * from ${JSON.stringify(srcPath("../src/minimap/geometry.ts"))};`,
+		`export * from ${JSON.stringify(srcPath("../src/util/text.ts"))};`,
+		`export * from ${JSON.stringify(srcPath("../src/render/character-weights.ts"))};`,
 	].join("\n"),
 	"utf8"
 );
@@ -29,7 +37,9 @@ esbuild.buildSync({
 	logLevel: "warning",
 });
 
-const mod = await import(new URL(`file://${outfile.replace(/\\/g, "/")}`).href);
+// 同理：`file://${path}` 拼出来的 URL 在 Windows 上会变成 file://C:/...（少一个斜杠、
+// 且盘符被当成主机名）。pathToFileURL 两个平台都对。
+const mod = await import(pathToFileURL(outfile).href);
 
 let failures = 0;
 let checks = 0;
