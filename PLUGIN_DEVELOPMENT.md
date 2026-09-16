@@ -57,9 +57,10 @@ src/util/text.ts                       代码文本解析
 src/util/color.ts                      颜色转换
 tools/generate-character-weights.mjs   从上游 CodeGlance Pro 生成权重表
 tools/package-release.mjs              同步 release/ 并打包发布 ZIP
-tools/validate-submission.mjs          提交前校验（manifest 约束、版本一致性、产物哈希）
+tools/validate-submission.mjs          提交前校验（manifest 约束、版本一致性、产物哈希、新流程硬约束）
 tools/smoke-test.mjs                   纯逻辑冒烟测试
 eslint.config.mjs                      官方社区插件审核用的 ESLint 配置
+.github/workflows/release.yml          打 tag 自动构建、生成产物溯源证明、建 draft Release
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/      可直接复制到 vault 的发布目录
 code-block-auto-collapse-<version>.zip 发布压缩包（由 npm run release 生成）
@@ -308,6 +309,15 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
    > **目录读的是「默认分支 HEAD 上的 `manifest.json`」**，所以 `main` 必须是 GitHub 的默认分支，不要设成 `develop`。`develop` 上的 `manifest.version` 是尚未发布的下一版，目录会找不到对应 Release（旧流程下这个报错是 `No release matches your manifest version`，新流程下表现为条目一直装不上）。
 5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.0` 而不是 `v1.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意 —— 目录不使用 Release 名称。
 
+   这一步已经自动化，**推荐直接推 tag，不要手工上传**：
+
+   ```bash
+   git tag -a 1.0.0 -m "1.0.0"
+   git push origin 1.0.0
+   ```
+
+   `.github/workflows/release.yml` 会校验 tag 与 `manifest.version` 一致、跑 lint 与测试、构建、生成产物溯源证明，最后建一个 **draft** Release 并附上三个文件。到 Releases 页补好发布说明再 **Publish release** 即可。原理与注意事项见 13.7。
+
 **B. 在社区目录里提交**
 
 6. 打开 <https://community.obsidian.md>，右上角 **Sign in**，用 **Obsidian 账号**登录（不是 GitHub 账号；没有就按提示创建）。登录后落在 **Community profile** 页。
@@ -444,6 +454,25 @@ see the shape of the code and jump around it without scrolling past hundreds of 
 No accounts, no payment, no network requests, no telemetry, no ads, and no access to
 files outside the vault. Fully open source (MIT).
 ```
+
+### 13.7 自动发布工作流（`.github/workflows/release.yml`）
+
+打 tag 即自动产出 Release。之所以要自动化：目录按「tag 与 `manifest.version` **精确相等**」定位 Release，附件又必须正好是那三个文件，手工上传很容易漏文件或版本对不上 —— 而这类错误要到用户在 Obsidian 里装不上时才会暴露。
+
+工作流依次做这些事：
+
+1. **校验 tag 与版本一致**。不一致就 `::error::` 直接失败，不会产出一个永远装不上的 Release。
+2. `npm ci` 装依赖（有 `package-lock.json`，比 `npm install` 可复现）。
+3. `npm run lint` + `npm test`。任一失败就不产出 Release —— 发出去的版本必须已经过官方规则集。
+4. `npm run build` 产出压缩后的 `main.js`。
+5. **生成 artifact attestation**（`actions/attest@v4`）：给三个产物签一份构建溯源证明。官方文档推荐提交插件到社区目录时启用。
+6. `gh release create --draft` 建草稿 Release 并附上 `main.js`、`manifest.json`、`styles.css`。
+
+**首次使用前必须开权限**：仓库 **Settings → Actions → General → Workflow permissions** 选 **Read and write permissions**，否则 `gh release create` 会 403。`attestations: write` 与 `id-token: write` 两个权限是签名用的，不能省。
+
+**为什么建 draft 而不是直接发布**：发布说明是写给人看的，`gh` 生成不了。草稿建好后到 Releases 页补说明再 **Publish release** —— Obsidian 只认已发布的 Release。
+
+**产物溯源证明的价值**：它让任何人都能验证「这份 `main.js` 确实由该 tag 对应的提交构建出来」。这也是社区目录愿意接受**私有源码仓库**的前提 —— 目录会拿公开 Release 的产物与私有仓库的源码做一致性校验。
 
 ## 14. 待提 issue 草稿
 
