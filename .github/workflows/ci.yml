@@ -86,7 +86,10 @@ jobs:
         run: npm run validate
 
       - name: Upload release zip
-        uses: actions/upload-artifact@v4
+        # v6 起才改用 Node.js 24；v4 仍指向 Node.js 20，运行器会强制它跑在
+        # Node 24 上并每次都报一条弃用告警。与本仓库其他 action（checkout@v7、
+        # setup-node@v7）保持一致用 v7。
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-zip
           path: code-block-auto-collapse-*.zip
