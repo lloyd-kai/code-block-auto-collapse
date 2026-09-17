@@ -33,6 +33,15 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `projectService` for type-aware linting, so a newer compiler makes
   `npm run lint` fail while `tsc --noEmit` and esbuild keep passing. Remove the
   ignore once `typescript-eslint` supports the newer compiler.
+- `eslint` was bumped to 10 and `esbuild` to 0.28. The esbuild bump was checked to
+  be output-neutral before it was taken: building the same source with 0.25.12 and
+  with 0.28.2 produced a byte-identical `main.js`. That check matters because the
+  released artifact has to keep matching what the default branch builds, so a
+  bundler upgrade that changes the output cannot be taken casually.
+- `@types/node` stays on 20 for now, and the range is worth revisiting: the
+  workflows run Node.js 22, so the types are two majors behind the runtime, while
+  the 26 that Dependabot proposes is four majors ahead of it. Neither describes
+  what actually runs; `^22` would.
 
 ## [1.0.1] - 2026-09-17
 

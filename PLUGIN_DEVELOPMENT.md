@@ -470,27 +470,34 @@ README 与 Release 说明面向国际用户，用英文；本文档是内部开�
 **GitHub Release 说明**（tag `1.0.1`，标题写 `1.0.1`）
 
 ```markdown
-Maintenance release. Requires Obsidian **1.13.0** or newer.
+Requires Obsidian **1.13.0** or newer.
 
-Same feature set as 1.0.0, plus the performance and correctness fixes that landed
-after it:
+A long fenced code block can swallow a whole note. This plugin folds code blocks in
+Reading view into a short preview with an expand button, and draws a CodeGlance-style
+minimap beside the very long ones — syntax-colored, clickable, draggable, and resizable.
+Thresholds, colors, and alignment are all configurable, in English and Chinese.
 
-- Scrolling a note with many code blocks no longer re-reads the full source of
-  every tracked block on every frame.
-- A code block that fills the entire viewport no longer rebuilds its source
-  string each frame while you scroll past it.
-- A settings change made just before reloading the plugin or quitting Obsidian is
-  no longer discarded.
-- A block whose source shrinks below the fold threshold now folds and unfolds
-  correctly again.
+See the README for the full feature list and the settings reference.
+
+### Performance
+
+- Scrolling a note with many code blocks no longer re-reads the full source of every
+  tracked block on every frame.
+- A code block that fills the entire viewport no longer rebuilds its source string each
+  frame while you scroll past it.
+
+### Fixes
+
+- A settings change made just before reloading the plugin or quitting Obsidian is no
+  longer discarded.
+- A block whose source shrinks below the fold threshold now folds and unfolds correctly
+  again.
 - Right-clicking the minimap no longer jumps to the clicked position.
-
-Long code blocks in Reading view are folded into a short preview with an expand button,
-and every folded block gets a CodeGlance-style minimap: syntax-colored, clickable,
-draggable, and resizable.
-
-See the README for the full feature list and settings reference.
 ```
+
+> **别把它写成「1.0.0 的维护版本」。** `1.0.0` 的 tag 虽然存在，但那个 draft Release 是要删掉的
+> —— `1.0.1` 是用户实际看到的第一个版本。对着一版用户看不到的 Release 说「功能与它相同」，
+> 读者只会困惑。文案要能独立成立。
 
 **社区目录条目描述**（在 `community.obsidian.md` 的 **Edit listing** 里填）
 
@@ -505,7 +512,7 @@ Collapse long code blocks in Reading view and navigate them with a syntax-colore
 ```markdown
 A long fenced code block can swallow a whole note. This plugin folds code blocks in
 Reading view and draws a CodeGlance-style minimap beside the very long ones, so you can
-see the shape of the code and jump around it without scrolling past hundreds of lines.
+see the shape of the code and jump around without scrolling past hundreds of lines.
 
 No accounts, no payment, no network requests, no telemetry, no ads, and no access to
 files outside the vault. Fully open source (MIT).
