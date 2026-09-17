@@ -415,6 +415,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 - [ ] Release 附件包含 `main.js`、`manifest.json`、`styles.css`。
 - [ ] `main.js` 是最新构建产物，不依赖本地绝对路径、开发服务器或未发布的 npm 包。
 - [ ] 发布包由 `npm run release` 生成，`release/code-block-auto-collapse/main.js` 与根目录 `main.js` 哈希一致。
+- [ ] 用溯源证明自查过 Build verification（见 13.4.1）：三份产物的 sha256 与 CI 签发的完全一致，且证书里的 `gitCommit` 等于 `main`。
 
 **代码与行为**
 
@@ -430,6 +431,43 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 **政策披露（README 里必须写清）**
 
 - [ ] 账号、付费功能、网络服务、vault 外文件访问、遥测、广告、闭源——每一项都要么明确写「无」，要么解释用途。本插件全部为「无」，见 README 的 Disclosures 一节。
+
+### 13.4.1 自查 Build verification
+
+目录端会对**默认分支**（= `main`）重新构建，并与 Release 附件逐字节比对。这一步跟代码质量无关，只跟「发布产物是不是这个提交构建出来的」有关，却是提交后最容易失败、也最不该失败的检查。
+
+发布工作流启用了 `actions/attest`，它把三份产物的 sha256 签名记录下来。**提交之前就能自己查**，不需要 `gh`：
+
+```bash
+# 1. 干净重建（先删产物，避免复用旧文件）
+rm -f main.js && npm run build
+sha256sum main.js
+
+# 2. 查 CI 为这个 digest 签发的溯源证明（公开仓库无需认证）
+https://api.github.com/repos/<owner>/<repo>/attestations/sha256:<digest>
+```
+
+返回的 `dsseEnvelope.payload` 是 base64 编码的 in-toto 声明，解出来就是三个文件名各自对应的 sha256：
+
+```bash
+node -e "console.log(Buffer.from(process.argv[1],'base64').toString('utf8'))" '<payload>'
+```
+
+三个 digest 全部与本地一致、且证书里的 `gitCommit` 等于 `main`，才算通过。
+
+> 本机沙箱里 `curl` 出不去（HTTP 000，只放通了 git 的通道），用 WebFetch 或任何能访问 HTTPS 的工具取同一个 URL 即可。
+
+**本仓库 1.0.1 的实测结果**（2026-09-17）：
+
+| 文件 | CI 证明的 sha256 | 本地重建 |
+|---|---|---|
+| `main.js` | `45fe0b6b…` | 一致 |
+| `manifest.json` | `4dce9cb1…` | 一致 |
+| `styles.css` | `4139b59f…` | 一致 |
+
+证书记录的构建来源：workflow `release.yml@refs/tags/1.0.1`，commit `2a7388e`（= `main` = tag `1.0.1`），run `35169880016`。
+
+> 这条检查以前只是「本地笔记里写着一致」—— 那种说法没有可核验的来源，等于没验证。attestation 把它变成了可复现的证明。
 
 ### 13.5 设置页为什么用声明式 API
 

@@ -45,6 +45,15 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   written `ownerWindow.setTimeout(...)`, so the type package is never consulted
   for them — which is why the change is provably inert rather than merely
   plausible.
+- `PLUGIN_DEVELOPMENT.md` now documents how to verify the build-reproducibility
+  check *before* submitting rather than after. The release workflow signs the
+  three artifacts with `actions/attest`, and an attestation is queryable
+  anonymously through the GitHub API, so the digests can be compared against a
+  clean local rebuild — and the recorded commit checked against the default
+  branch — while the submission is still being prepared. All three artifacts
+  matched for 1.0.1. Until now the claim that the published artifacts matched a
+  local build existed only in a local note, which is not a source anyone else can
+  check.
 
 ### Fixed
 
