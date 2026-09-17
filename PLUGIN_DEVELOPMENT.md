@@ -638,7 +638,7 @@ whether it is set by the plugin at runtime (several of them are written by the
 script on every layout pass, so overriding them in a snippet may not stick).
 ```
 
-### 14.7 Add a copy button to collapsed code blocks
+### 14.6 Add a copy button to collapsed code blocks
 
 - **标签**：`enhancement`
 
@@ -679,7 +679,54 @@ Remember that Obsidian's guidelines say a plugin must not ship a default hotkey,
 so these should be unbound on install.
 ```
 
-## 15. 参考资料
+## 15. 本环境的 git 陷阱（已定位，并加了守门脚本）
+
+**这不是仓库或代码的问题，是 WorkBuddy Bash 沙箱写入策略的漏洞。** 现象、实测证据、对策都记在这里，免得下次再靠「感觉」绕过。
+
+### 15.1 现象
+
+在这个环境里用默认的 `git`（PATH 上的 `/mingw64/bin/git`，也就是托管版 PortableGit 2.55.0.windows.3）操作**工作区内**的仓库时，git 会**静默地**写不进带斜杠的 ref：退出码 0、没有任何输出，但 `.git/refs/heads/feature/x` 根本没落盘。两个已经踩过的坑都由此而来：
+
+1. `git checkout -b feature/x` 打印 `Switched to a new branch 'feature/x'`，HEAD 也指过去了，但 ref 不存在 —— 分支是 unborn 的。紧接着 `git commit` 报 `does not have any commits yet`，改动全卡在暂存区，看起来像「提交成功但历史里没有」。
+2. `git merge` 在工作区脏时走 autostash，而 `git stash` **会先把工作区回退**、再写 stash 记录；记录写不进去时未提交的改动直接消失（实测还伴随 `.git` 被整个清空，当时已修好的 `tools/smoke-test.mjs` 就是这么丢的）。
+
+### 15.2 实测矩阵（每个格子各 3 次，稳定复现）
+
+| git | 仓库位置 | `refs/heads/feature/x` | `refs/remotes/origin/main` | `refs/heads/flat` |
+| --- | --- | --- | --- | --- |
+| PortableGit 2.55（PATH 上的 `git`） | 工作区内 | **静默丢失** | **静默丢失** | 正常 |
+| Git for Windows 2.43（`/d/Git/cmd/git`） | 工作区内 | 正常 | 正常 | 正常 |
+| PortableGit 2.55 | `%TEMP%` 下 | 正常 | 正常 | 正常 |
+| Git for Windows 2.43 | `%TEMP%` 下 | 正常 | 正常 | 正常 |
+
+**两个条件同时成立才触发**：新版 git 的 MSYS 运行时创建目录走的那条系统调用被沙箱拦了，而沙箱对 `.git/refs/**` 的写入白名单只覆盖到 `.git/refs/<一层>/<文件>`，再深一层就被静默丢弃。于是：
+
+- **受影响**：`refs/heads/<a>/<b>`（GitFlow 的 `feature/*`、`bugfix/*`、`release/*`、`hotfix/*` 全中）、`refs/remotes/origin/*`（`git fetch` 之后跟踪引用永远显示 `[origin/*: gone]`）、`refs/tags/<a>/<b>`。
+- **不受影响**：`refs/heads/<单层名>`、`refs/stash`、`ORIG_HEAD`、`.git/objects/**`，以及工作区里的嵌套目录（`git checkout` 能正常重建 `.github/workflows/`）。
+
+已经逐一排除、确认无关的项：`core.fscache`、`core.protectNTFS`、`core.autocrlf`、`MSYS` / `MSYS_NO_PATHCONV` / `MSYS2_ARG_CONV_EXCL`、`.gitattributes`、OneDrive 同步、`safe-bin` 的 `rm` shim，以及「磁盘权限 / 目录不存在」这类猜测 —— bash 的 `mkdir -p .git/refs/heads/feature` 完全正常且能持久化，但 git 往这个**已经存在**的目录里写 ref 仍然失败。
+
+### 15.3 对策：`tools/git-guard.mjs`
+
+```bash
+npm run git:check                  # 诊断：逐个探测候选 git，报告哪个可用
+npm run git -- status --short      # 用可用的 git 执行（自动挑选 + 执行后校验）
+```
+
+- **诊断**（`--diagnose`）：只创建再删除一个探针 ref（`refs/heads/cbac-env-probe/x`），不碰工作区、不动 HEAD，并且一定会把探针删掉。
+- **执行**：按「系统安装的 Git for Windows → PATH 上的 git」顺序，挑第一个能通过探测的；执行后校验这条命令「本应创建」的 ref 是否真的存在、HEAD 是否不是 unborn。发现不一致就退出码 1 并明确报错 —— **把静默失败变成响亮的失败**，这是这个脚本存在的全部理由。
+- 只读子命令（`status` `log` `diff` `rev-parse` …）不需要探测，直接执行，避免在没有可用 git 时把只读操作也一并堵死。
+- 已作为第一环进入 `npm run preflight`。
+
+### 15.4 硬规则
+
+1. **本仓库的 git 操作一律用 `D:/Git/cmd/git`（2.43），不要用 PATH 上的 `git`。** 写脚本时 `G=/d/Git/cmd/git` 再 `$G ...`。
+2. **工作区脏的时候绝对不要 `git merge`。** 先提交干净 —— autostash 正是那条会把改动吃掉的路径。
+3. 需要建 / 删 / 改 ref 时优先走 `npm run git --`，让执行后校验兜底。
+4. 沙箱拒绝写入时命令可能被 SIGTERM 打断，所以「先破坏再重建」的操作（`git stash`、`rm -rf`）不要和别的步骤挤在同一条命令里。
+5. 这是沙箱策略的缺陷，不是 git 的 bug：同一个二进制在 `%TEMP%` 下完全正常。要在别处复现，照 15.2 的矩阵做即可。
+
+## 16. 参考资料
 
 - [Obsidian Plugin Developer Docs](https://docs.obsidian.md/Plugins)
 - [Build a plugin](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
