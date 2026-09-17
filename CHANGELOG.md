@@ -58,6 +58,11 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `main.js` must not be tracked by Git, the README must carry a disclosures
   section, `package.json` must expose a build script the scanner can find, and
   `id` must not end with `plugin`.
+- `npm run git:check` now runs in warn-only mode and cannot fail the build. Its
+  verdict depends on the machine — whether a system Git is installed, whether the
+  checkout is a linked worktree, whether the directory is managed by a sync
+  client — so it has no business gating `npm run preflight`. Use the new
+  `npm run git:check:strict` when you want it to block.
 
 ### Removed
 
@@ -86,6 +91,31 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   clicked position. Only a real left-button release navigates now.
 - The hover preview kept a reference to the block's full source after it was
   destroyed.
+- A code block that fills the viewport still rebuilt its entire source string
+  every frame. The previous fix only skipped blocks that were fully off screen,
+  which does nothing for one long block that is itself the whole screen — the
+  worst case, since a 20,000-line block meant re-allocating roughly 0.6 MB per
+  frame while scrolling. The read is now gated to once every 400 ms. Reading View
+  content is effectively static, so the delay is invisible, and minimap geometry
+  still updates every frame.
+- A block whose source shrank below "Minimum lines to collapse" stayed clamped.
+  The collapse flag was recomputed but never re-applied, so the wrapper kept its
+  `is-collapsed` class while the toggle advertised "Collapse".
+- `tools/git-guard.mjs` reported false failures for correct commands. `git -c
+  key=value <command>` was read as a ref name, so the guard claimed
+  `merge.autostash=false` had been silently dropped; `git branch --list
+  <pattern>`, `git tag -l <pattern>`, and `git branch -a` were treated as branch
+  creations that never appeared; and an unstaged deletion that already existed
+  before the command was blamed on the command. The guard now parses the
+  subcommand past global options, ignores listing and pattern arguments, and
+  diffs the worktree against a snapshot taken beforehand.
+- `tools/git-guard.mjs` declared a perfectly good Git unusable inside a linked
+  worktree or submodule, because it looked for ref files under
+  `--absolute-git-dir` while refs live in the common directory.
+- `npm run release` on Node below 20.15 or 22.2 died with an opaque
+  module-resolution `SyntaxError` about `node:zlib`, because `crc32` does not
+  exist there. It now fails with the Node version it found and the version it
+  needs.
 
 ## [1.0.0] - 2026-09-16
 
