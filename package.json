@@ -1,6 +1,6 @@
 {
   "name": "code-block-auto-collapse",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --external:obsidian --external:@codemirror/* --format=cjs --platform=node --target=es2018 --charset=utf8 --outfile=main.js --sourcemap",
