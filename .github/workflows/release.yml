@@ -66,15 +66,23 @@ jobs:
             manifest.json
             styles.css
 
-      - name: Create release
+      - name: Create or update the draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           tag="${GITHUB_REF#refs/tags/}"
 
+          # 幂等：重推同一个 tag（上一次跑挂了要重试，或者 tag 被移动过）时，
+          # `gh release create` 会因为同名 Release 已存在而直接失败，把一次
+          # 本来能自愈的重试变成必须人工干预。已存在就覆盖附件，不存在才新建。
           # --draft：先建草稿，人工补发布说明后再 Publish release。
-          gh release create "$tag" \
-            --title="$tag" \
-            --draft \
-            main.js manifest.json styles.css
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag 已存在，改为覆盖三个附件。"
+            gh release upload "$tag" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$tag" \
+              --title="$tag" \
+              --draft \
+              main.js manifest.json styles.css
+          fi
