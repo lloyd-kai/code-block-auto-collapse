@@ -2,9 +2,9 @@
 
 **English** · [中文](#中文说明)
 
-**Version 1.0.0** · requires Obsidian **1.13.0** or newer · desktop and mobile
+**Version 1.0.1** · requires Obsidian **1.13.0** or newer · desktop and mobile
 
-A long fenced code block can swallow a whole note. This plugin keeps code blocks compact in Reading View and gives the very long ones a real code minimap, so you can still see the shape of the code and jump around it without scrolling past hundreds of lines.
+A long fenced code block can swallow a whole note. This plugin keeps code blocks compact in Reading view and gives the very long ones a real code minimap, so you can still see the shape of the code and jump around it without scrolling past hundreds of lines.
 
 ## What it does
 
@@ -48,7 +48,7 @@ The interface follows Obsidian's own language: it is English by default and swit
 
 ### From the release ZIP
 
-Unzip `code-block-auto-collapse-1.0.0.zip` directly into `<vault>/.obsidian/plugins/`. The archive contains the `code-block-auto-collapse` plugin directory with all runtime files.
+Unzip `code-block-auto-collapse-1.0.1.zip` directly into `<vault>/.obsidian/plugins/`. The archive contains the `code-block-auto-collapse` plugin directory with all runtime files.
 
 The ZIP holds exactly three files — `main.js`, `manifest.json`, and `styles.css` — under a single `code-block-auto-collapse/` directory. It is produced by `npm run release`, so it always matches the current build.
 
@@ -77,17 +77,21 @@ tools/package-release.mjs             Syncs release/ and packs the release ZIP
 tools/validate-submission.mjs         Submission checks (manifest constraints, version agreement, artifact hashes)
 tools/smoke-test.mjs                  Pure-logic smoke tests
 eslint.config.mjs                     ESLint config matching the official community plugin review
+.github/workflows/ci.yml              Lint, test and build on Linux and Windows for every push
 .github/workflows/release.yml         Tag-driven release: build, attest, draft the GitHub release
+.github/dependabot.yml                Weekly dependency and action version updates
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/     Ready-to-copy plugin directory
 code-block-auto-collapse-<version>.zip  Release archive
 ```
 
+`main.js`, `release/`, and the ZIP are build outputs and are **not committed** — `main.js` is distributed as a GitHub release asset only, as the community directory requires.
+
 ### Scripts
 
 - `npm run build` runs `tsc --noEmit` first, then bundles with esbuild.
 - `npm test` runs the smoke tests for the geometry, text parsing, and weight tables (no DOM required).
-- `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports zero errors and two advisory warnings about the pre-1.13 settings API — see [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md).
+- `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports **zero errors and zero warnings**.
 - `npm run release` builds, syncs `release/code-block-auto-collapse/`, and packs `code-block-auto-collapse-<version>.zip` from the same in-memory artifacts — so the three can never drift apart.
 - `npm run validate` checks the submission requirements mechanically: manifest field constraints, version agreement across `manifest.json` / `package.json` / `versions.json` / the ZIP name, and that the root `main.js`, the `release/` copy, and the copy inside the ZIP are byte-identical. It also enforces the rules the community directory scanner applies — `main.js` must not be tracked by Git, the README must carry a disclosures section, and `package.json` must expose a build script the scanner can find.
 - `npm run preflight` runs `lint` → `test` → `release` → `validate` in one go. This is the command to run before every release.
@@ -154,13 +158,15 @@ Obsidian's [developer policies](https://docs.obsidian.md/Community+directory/Dev
 | Node.js or Electron APIs | None, so `isDesktopOnly` is `false` and the plugin runs on mobile. |
 | Obfuscated or minified-only source | None. `main.js` is a readable esbuild bundle built from the `src/` tree in this repository. |
 
-**What the plugin does touch.** It only decorates the DOM that Obsidian has already rendered in Reading View. It never writes to your Markdown files, and it never modifies your vault. Removing the plugin leaves every note byte-for-byte unchanged.
+**What the plugin does touch.** It only decorates the DOM that Obsidian has already rendered in Reading view. It never writes to your Markdown files, and it never modifies your vault. Removing the plugin leaves every note byte-for-byte unchanged.
 
 **Third-party code.** No third-party runtime code is bundled — the released `main.js` contains only this project's source plus the Obsidian API it is linked against. The upstream [CodeGlance Pro](https://github.com/Nasller/CodeGlancePro) repository is a reference for the minimap rendering algorithm only; it is not part of this project and is not distributed with it.
 
 ## Support
 
 Found a bug or want a feature? Open an issue at [github.com/lloyd-kai/code-block-auto-collapse/issues](https://github.com/lloyd-kai/code-block-auto-collapse/issues).
+
+For anything exploitable, use [private vulnerability reporting](https://github.com/lloyd-kai/code-block-auto-collapse/security/advisories/new) instead of a public issue — see [SECURITY.md](.github/SECURITY.md).
 
 ## License
 

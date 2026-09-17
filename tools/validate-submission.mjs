@@ -220,17 +220,27 @@ if (!buildScript) {
 	warn(`扫描器会优先使用 "${buildScript}" 而不是 "build"，确认它确实是生产构建命令`);
 }
 
-// 官方要求 main.js 只作为 Release 附件，不进仓库。
-const tracked = gitTracked(["main.js", "main.js.map", "data.json", "_CodeGlancePro", "_ref", "release"]);
+// 官方要求 main.js 只作为 Release 附件，不进仓库。其余几项是本地工作产物，
+// 同样不该出现在公开仓库里；.gitignore 已经排除了它们，这里再断言一次 ——
+// .gitignore 拦不住 `git add -f`，而误提交的东西一旦推上去就很难悄悄收回。
+const localOnly = [
+	["main.js", "官方要求 main.js 不进仓库，只作为 GitHub Release 附件分发"],
+	["main.js.map", "构建产物"],
+	["data.json", "插件写进 vault 的本地设置"],
+	["_CodeGlancePro", "缩略图算法的参考实现，需要时临时克隆"],
+	["_ref", "官方文档镜像与本地参考资料"],
+	["release", "由 npm run release 生成"],
+	["AGENTS.md", "给本地 AI 助手的工作交接说明"],
+	["PLUGIN_SUBMISSION_ZH.md", "官方文档的中文整理稿，版权属 Obsidian"],
+	[".workbuddy-ai", "本地助手的工作记忆"],
+];
+const tracked = gitTracked(localOnly.map(([name]) => name));
 if (tracked === null) {
-	warn("查不到 git 跟踪状态（不是 git 仓库或环境里没有 git），跳过「构建产物是否被误提交」检查");
+	warn("查不到 git 跟踪状态（不是 git 仓库或环境里没有 git），跳过「本地产物是否被误提交」检查");
 } else {
-	if (tracked.includes("main.js")) {
-		fail("main.js 被 git 跟踪了。官方要求 main.js 不进仓库，只作为 GitHub Release 附件分发");
-	}
-	for (const unwanted of ["data.json", "_CodeGlancePro", "_ref", "release"]) {
-		const hit = tracked.find((path) => path === unwanted || path.startsWith(`${unwanted}/`));
-		if (hit) fail(`${hit} 被 git 跟踪了，这是本地工作产物，不应提交`);
+	for (const [name, reason] of localOnly) {
+		const hit = tracked.find((path) => path === name || path.startsWith(`${name}/`));
+		if (hit) fail(`${hit} 被 git 跟踪了（${reason}），不应提交`);
 	}
 }
 

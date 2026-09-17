@@ -1,0 +1,53 @@
+# 依赖与 Action 版本的自动升级 PR。
+#
+# 为什么需要：工作流里 pin 的 action 版本会随运行器升级而过期 —— 本仓库已经踩过一次
+# （upload-artifact v4 指向 Node.js 20，运行器强制它跑在 Node 24 上并每次报一条弃用告警）。
+# 手工盯着 6 个 action 的版本不现实，交给 Dependabot 每周提 PR，走正常 CI 再合。
+#
+# 提交信息沿用仓库的 Conventional Commits 约定（scope 取 deps / ci），
+# 与 CONTRIBUTING.md 里列出的 scope 表一致。
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # 一个包一个 PR 会淹掉 issue 列表，按类别合并。
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@typescript-eslint/*"
+      types:
+        patterns:
+          - "@types/*"
+          - "typescript"
+      build:
+        patterns:
+          - "esbuild"
+          - "tslib"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      # 三个工作流里的 action 版本必须保持一致（checkout / setup-node /
+      # upload-artifact / attest 都 pin 到同一个大版本），所以合并成一个 PR 一起升。
+      actions:
+        patterns:
+          - "*"

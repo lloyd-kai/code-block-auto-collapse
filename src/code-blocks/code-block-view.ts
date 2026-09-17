@@ -15,6 +15,20 @@ export interface CodeBlockHost {
 /** 折叠时按钮与遮罩共用的最小行高兜底值。 */
 const FALLBACK_LINE_HEIGHT = 21;
 
+/** 离视口这么远就整帧跳过重算（px）。 */
+const OFFSCREEN_MARGIN = 200;
+
+/**
+ * 重读源码文本的最小间隔（ms）。
+ *
+ * `textContent` 是 O(全文) 的字符串构建。只靠「离屏就跳过」是不够的：一个自身
+ * 就占满视口的超长代码块永远不算离屏，滚动时每一帧都会重建一次整段源码字符串
+ * （两万行的块约 0.6MB/帧，60fps 下是几十 MB/s 的无谓分配）。
+ * 阅读视图的内容基本是静态的 —— 改动会走重新渲染而不是就地改文本 —— 所以按时间
+ * 闸门抽查就够；真正需要每帧同步的是缩略图几何，那部分不受这里影响。
+ */
+const CONTENT_RECHECK_MS = 400;
+
 /**
  * 一个代码块的视图：负责折叠状态、按钮、遮罩，并持有缩略图。
  *
@@ -34,6 +48,8 @@ export class CodeBlockView implements MinimapHost {
 	private previewHeight: number;
 	private lineCount: number;
 	private contentLength: number;
+	/** 上次重读源码文本的时刻（`performance.now()`，未读过的块为 -Infinity）。 */
+	private contentCheckedAt = Number.NEGATIVE_INFINITY;
 
 	constructor(host: CodeBlockHost, pre: HTMLElement, code: HTMLElement, text: string, lineCount: number) {
 		this.host = host;
@@ -123,14 +139,54 @@ export class CodeBlockView implements MinimapHost {
 	/** 跟随滚动 / 尺寸变化刷新视窗与画面。 */
 	update(): void {
 		if (!this.wrapper.isConnected) return;
-		const text = this.code.textContent ?? "";
-		if (text.length !== this.contentLength) {
-			this.contentLength = text.length;
-			this.lineCount = countLines(text);
-			this.collapsible = this.lineCount >= this.host.settings.minimumLines;
-			this.minimap?.setContent(text);
-		}
+		// 视口之外的代码块整帧跳过：长文档里绝大多数代码块都不在视口内，
+		// 跳过它们能省掉大量无谓分配。
+		if (this.isFarOffscreen()) return;
+		// 在视口内的块还要再走一道时间闸门 —— 见 CONTENT_RECHECK_MS 的说明。
+		if (this.contentDue()) this.syncContent();
 		this.minimap?.update();
+	}
+
+	/** 是否到了可以重读源码文本的时刻；同时记下本次时刻。 */
+	private contentDue(): boolean {
+		const now = this.pre.ownerDocument.defaultView?.performance.now() ?? Date.now();
+		if (now - this.contentCheckedAt < CONTENT_RECHECK_MS) return false;
+		this.contentCheckedAt = now;
+		return true;
+	}
+
+	/**
+	 * 重读源码文本，行数跨越阈值时同步折叠状态。
+	 *
+	 * 只比长度：后处理器重建 DOM 时文本长度几乎一定会变，而「长度相同但内容不同」
+	 * 在阅读视图里不可达，不值得为此付一次逐字符比较的代价。
+	 */
+	private syncContent(): void {
+		const text = this.code.textContent ?? "";
+		if (text.length === this.contentLength) return;
+		this.contentLength = text.length;
+		this.lineCount = countLines(text);
+		this.minimap?.setContent(text);
+
+		const collapsible = this.lineCount >= this.host.settings.minimumLines;
+		if (collapsible === this.collapsible) return;
+		this.collapsible = collapsible;
+		// 内容被改到阈值以下时必须复位折叠状态，否则 wrapper 一直挂着
+		// is-collapsed（内容被 CSS 夹住），按钮却显示「收起」，点一下才恢复。
+		// 反向（变长到可折叠）故意不自动收起：不把正在读的内容从用户眼前抽走。
+		if (!collapsible) this.setCollapsed(false);
+	}
+
+	/**
+	 * 是否远离视口。
+	 * 用窗口视口而不是真实滚动容器：前者更大，所以判断只会偏保守（多算几次），
+	 * 不会把真正可见的代码块漏掉；而拿到真实滚动容器需要沿祖先链逐个读计算样式，
+	 * 那正是这里最想避免的开销。
+	 */
+	private isFarOffscreen(): boolean {
+		const rect = this.pre.getBoundingClientRect();
+		const viewHeight = this.pre.ownerDocument.defaultView?.innerHeight ?? 0;
+		return rect.bottom < -OFFSCREEN_MARGIN || rect.top > viewHeight + OFFSCREEN_MARGIN;
 	}
 
 	/** 宽度变化后只刷新布局，不重建 DOM。 */
