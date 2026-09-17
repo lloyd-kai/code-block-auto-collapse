@@ -52,7 +52,11 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   to unzip `code-block-auto-collapse-1.0.0.zip`, a file that does not exist. The
   English half had been updated and the other half was missed, which is the
   failure mode of keeping two parallel translations in one file: a version bump
-  is only done when both halves agree, and nothing was checking that.
+  is only done when both halves agree, and nothing was checking that. `npm run
+  validate` now asserts that both version lines, and every
+  `code-block-auto-collapse-<version>.zip` reference in the file, name
+  `manifest.version`; the release checklist in `PLUGIN_DEVELOPMENT.md` lists the
+  assertion alongside the other version checks.
 - The Chinese command list was missing `lint`, `validate`, and `weights`, so it
   described a smaller set of checks than the English one.
 - The release walkthrough in `PLUGIN_DEVELOPMENT.md` used `1.0.0` in its
@@ -67,6 +71,16 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 - The Chinese support section did not point at the private vulnerability
   reporting path, so a Chinese-speaking reader who found something exploitable
   had only the public issue tracker to go on.
+- `CONTRIBUTING.md` described a narrower convention than this repository follows.
+  Its scope list omitted `docs`, `changelog`, `submission`, and `validate`, which
+  between them account for eight of the twenty-four scope uses in the history,
+  and the direct-push allowance for `develop` named only `docs` and `chore` while
+  six of the sixteen direct pushes were `build` or `ci`. Both now say what the
+  history does: direct pushes are for changes with no runtime effect, and no
+  commit touching `src/` or `styles.css` has ever been pushed straight to
+  `develop`. A published convention that the project's own commits routinely break
+  is worse than no convention, because a contributor reads it as a rule and then
+  has to guess which parts of it are real.
 
 ## [1.0.1] - 2026-09-17
 

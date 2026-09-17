@@ -335,7 +335,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
    它依次执行 `lint`（官方 ESLint 规则集，必须 0 error）、`test`（38 项纯逻辑断言）、`release`（构建 + 同步 `release/` + 打 ZIP）、`validate`。
 
-   `validate` 会把 13.4 的检查清单逐条断言：manifest 字段约束、版本五处一致、根目录 / `release/` / ZIP 内三份 `main.js` 哈希一致、ZIP 条目路径规范、占位符残留。任何一条不满足都会以非零退出码结束并列出问题文件。
+   `validate` 会把 13.4 的检查清单逐条断言：manifest 字段约束、版本五处一致、根目录 / `release/` / ZIP 内三份 `main.js` 哈希一致、ZIP 条目路径规范、README 中英两半的版本引用、占位符残留。任何一条不满足都会以非零退出码结束并列出问题文件。
 
    需要单独跑某一步时：`npm run lint`、`npm test`、`npm run release`、`npm run validate`。
 3. 在干净 vault 里回归测试：短/空/超长代码块、不同语言高亮、frontmatter、深浅主题、窄窗口、折叠展开、缩略图点击/拖拽/调宽/键盘、弹出窗口、禁用插件后 DOM 是否还原、中英文界面各看一遍。
@@ -410,6 +410,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 **版本与发布**
 
 - [ ] `manifest.version`、`package.json`、`versions.json`、Git tag、GitHub Release 五处版本完全一致。
+- [ ] README 中英两半的版本行与正文里提到的 ZIP 名都等于 `manifest.version` —— 一个文件里放两半，版本提升要改两处，只改一半是真实发生过的事故（`npm run validate` 会断言）。
 - [ ] Tag 不带 `v` 前缀。
 - [ ] Release 附件包含 `main.js`、`manifest.json`、`styles.css`。
 - [ ] `main.js` 是最新构建产物，不依赖本地绝对路径、开发服务器或未发布的 npm 包。

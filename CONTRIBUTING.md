@@ -20,7 +20,14 @@ Two long-lived branches:
 | Branch | Purpose | Direct pushes |
 |---|---|---|
 | `main` | The released state. Every commit here is a published version and carries a matching tag. | Never |
-| `develop` | Integration branch. Finished work that has not been released yet lands here. | Only `docs` / `chore` |
+| `develop` | Integration branch. Finished work that has not been released yet lands here. | Only changes that cannot alter the shipped plugin: `docs`, `chore`, `build`, `ci`, and doc-only `fix` |
+
+Direct pushes to `develop` are for work with no runtime effect: documentation,
+chore, dependency and tooling bumps, CI configuration. Nothing under `src/` or in
+`styles.css` has ever been pushed straight to `develop`, and that is the rule
+rather than a coincidence — a `release/*` branch is cut from `develop`, so a code
+change that lands there without a branch has no reviewable unit around it and no
+single commit to revert. If in doubt, branch.
 
 Short-lived branches. All of them are merged back with `--no-ff` so the branch
 topology survives in the history:
@@ -79,8 +86,10 @@ the released state on the default branch.
 | `chore` | Everything else, including dependencies | — |
 | `revert` | Revert a previous commit | — |
 
-**scope** — optional, and taken from the module layout: `code-block`, `minimap`,
-`render`, `preview`, `settings`, `i18n`, `styles`, `build`, `release`, `deps`.
+**scope** — optional, and either a module (`code-block`, `minimap`, `render`,
+`preview`, `settings`, `i18n`, `styles`) or the area of the repository that is not
+a module (`build`, `release`, `validate`, `deps`, `docs`, `changelog`,
+`submission`).
 
 **subject** — imperative mood ("add", not "added" or "adds"), lowercase, no
 trailing period, at most 72 characters.
