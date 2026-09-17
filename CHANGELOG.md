@@ -21,6 +21,15 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   a packaging job that runs the submission validator. The release workflow runs
   on Ubuntu while development happens on Windows, so a platform-specific bug
   could previously pass every local check and only surface at tag time.
+- `tools/git-guard.mjs`, exposed as `npm run git:check` and `npm run git --`.
+  It diagnoses and works around a silent ref-loss defect in this environment's
+  Bash sandbox: the bundled PortableGit 2.55 reports success while writing
+  nothing for refs nested deeper than `.git/refs/<name>/<file>` inside the
+  workspace. `feature/*` branches silently became unborn and `git merge` could
+  discard uncommitted work through autostash. The guard picks a working git,
+  verifies that a ref-mutating command actually produced its ref, and fails
+  loudly when it did not. It is now the first step of `npm run preflight`; the
+  reproduction matrix is in `PLUGIN_DEVELOPMENT.md` section 15.
 
 ### Changed
 
@@ -51,6 +60,28 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 - `settings-tab.ts` no longer imports `Setting` or builds rows by hand; the
   imperative `display()` override is gone, which clears the two ESLint warnings
   the official rule set reported for it.
+
+### Fixed
+
+- A settings change or a minimap width drag could be lost. `saveData()` is
+  debounced by 400 ms and `onunload()` cancelled the pending call, so reloading
+  the plugin or quitting the app inside that window discarded the change. The
+  debounce now exposes `flush()`, and unload flushes it before tearing anything
+  else down.
+- Scrolling a note with many code blocks re-read `textContent` for every tracked
+  block on every frame, allocating a fresh copy of the full source each time.
+  Blocks far outside the viewport are now skipped before that read.
+- `CodeMinimap.update()` resolved the scroll container — an ancestor walk that
+  reads computed styles and `scrollHeight` at every level — before checking
+  whether the block was on screen. The cheap viewport test now runs first, so
+  off-screen blocks skip the expensive walk.
+- A block longer than "Maximum lines to render" still rebuilt its per-row
+  representative array on every geometry change, even though nothing is drawn
+  for it.
+- With "Jump on" set to `Pointer up`, right-clicking the minimap jumped to the
+  clicked position. Only a real left-button release navigates now.
+- The hover preview kept a reference to the block's full source after it was
+  destroyed.
 
 ## [1.0.0] - 2026-09-16
 

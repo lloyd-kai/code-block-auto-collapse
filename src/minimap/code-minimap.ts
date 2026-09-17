@@ -175,11 +175,17 @@ export class CodeMinimap {
 				: (Number.isFinite(fontSize) ? fontSize * 1.5 : 21);
 		const collapsed = this.host.isCollapsed();
 		const blockHeight = Math.max(lineHeight, this.preEl.scrollHeight);
+		const blockRect = this.preEl.getBoundingClientRect();
+		// 先用窗口视口做一次廉价筛选：getScrollContainer() 要沿祖先链逐个读
+		// 计算样式和 scrollHeight/clientHeight，是这里最贵的一步。窗口视口比真实
+		// 滚动容器大，所以这个判断只会多算、不会把可见内容漏掉。
+		const margin = 200;
+		const viewHeight = this.ownerWindow.innerHeight || 0;
+		if (blockRect.bottom < -margin || blockRect.top > viewHeight + margin) return;
+
 		const container = this.host.getScrollContainer();
 		const containerRect = clientRectOf(container, this.ownerWindow);
-		const blockRect = this.preEl.getBoundingClientRect();
-		// 完全离开可视区域的代码块跳过重算，滚动时只处理眼前的内容
-		const margin = 200;
+		// 再用真实滚动容器复核：滚动容器比窗口小时能进一步筛掉
 		if (blockRect.bottom < containerRect.top - margin || blockRect.top > containerRect.bottom + margin) return;
 		const visibleTop = clamp(containerRect.top - blockRect.top, 0, blockHeight);
 		const visibleBottom = clamp(containerRect.bottom - blockRect.top, 0, blockHeight);
@@ -195,7 +201,8 @@ export class CodeMinimap {
 			visibleHeight: Math.max(0, visibleBottom - visibleTop),
 			forceFit: collapsed,
 		});
-		this.ensureRows();
+		// 超出可渲染范围时只保留空白区域，代表行数组没有必要重建
+		if (!this.empty) this.ensureRows();
 		this.applyGeometry();
 		this.scheduleRender();
 	}
@@ -430,7 +437,8 @@ export class CodeMinimap {
 			return;
 		}
 		const settings = this.host.settings;
-		if (settings.jumpOn === "up") {
+		// 只认左键真正松开：pointercancel 的 button 是 -1，右键松开也不该触发跳转
+		if (settings.jumpOn === "up" && event.type === "pointerup" && event.button === 0) {
 			const rect = this.containerEl.getBoundingClientRect();
 			const y = event.clientY - rect.top;
 			if (y >= 0 && y <= rect.height) this.navigateAt(y);

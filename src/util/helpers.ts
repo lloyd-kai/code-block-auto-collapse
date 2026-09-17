@@ -20,8 +20,14 @@ export interface Cancellable {
 	cancel(): void;
 }
 
+/** 额外支持立即结算的调用器，用于卸载时把待执行的调用补上。 */
+export interface Schedulable extends Cancellable {
+	/** 立即执行尚未触发的调用；当前没有待执行的调用时什么都不做。 */
+	flush(): void;
+}
+
 /** 延迟执行，重复调用会重置计时。 */
-export function debounce(fn: () => void, wait: number, ownerWindow: Window): Cancellable {
+export function debounce(fn: () => void, wait: number, ownerWindow: Window): Schedulable {
 	let handle: number | null = null;
 	const invoke = (): void => {
 		handle = null;
@@ -30,12 +36,17 @@ export function debounce(fn: () => void, wait: number, ownerWindow: Window): Can
 	const debounced = ((): void => {
 		if (handle !== null) ownerWindow.clearTimeout(handle);
 		handle = ownerWindow.setTimeout(invoke, wait);
-	}) as Cancellable;
+	}) as Schedulable;
 	debounced.cancel = (): void => {
 		if (handle !== null) {
 			ownerWindow.clearTimeout(handle);
 			handle = null;
 		}
+	};
+	debounced.flush = (): void => {
+		if (handle === null) return;
+		ownerWindow.clearTimeout(handle);
+		invoke();
 	};
 	return debounced;
 }
@@ -61,7 +72,8 @@ export function throttleFrame(fn: () => void, ownerWindow: Window): Cancellable 
 }
 
 /** 编译用户输入的正则，非法时返回 null。 */
-export function safeRegex(pattern: string): RegExp | null {	try {
+export function safeRegex(pattern: string): RegExp | null {
+	try {
 		return new RegExp(pattern, "u");
 	} catch {
 		try {
@@ -107,8 +119,9 @@ export function maxScrollTop(container: HTMLElement): number {
 }
 
 /** 占位用的空实现，便于字段先初始化、onload 时再替换。 */
-export function noopCancellable(): Cancellable {
-	const fn = ((): void => undefined) as Cancellable;
+export function noopSchedulable(): Schedulable {
+	const fn = ((): void => undefined) as Schedulable;
 	fn.cancel = (): void => undefined;
+	fn.flush = (): void => undefined;
 	return fn;
 }

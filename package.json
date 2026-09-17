@@ -8,7 +8,9 @@
     "test": "node tools/smoke-test.mjs",
     "lint": "eslint src",
     "validate": "node tools/validate-submission.mjs",
-    "preflight": "npm run lint && npm test && npm run release && npm run validate",
+    "git": "node tools/git-guard.mjs",
+    "git:check": "node tools/git-guard.mjs --diagnose",
+    "preflight": "npm run git:check && npm run lint && npm test && npm run release && npm run validate",
     "weights": "node tools/generate-character-weights.mjs",
     "release": "npm run build && node tools/package-release.mjs"
   },

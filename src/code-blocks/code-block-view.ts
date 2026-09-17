@@ -15,6 +15,9 @@ export interface CodeBlockHost {
 /** 折叠时按钮与遮罩共用的最小行高兜底值。 */
 const FALLBACK_LINE_HEIGHT = 21;
 
+/** 离视口这么远就整帧跳过重算（px）。 */
+const OFFSCREEN_MARGIN = 200;
+
 /**
  * 一个代码块的视图：负责折叠状态、按钮、遮罩，并持有缩略图。
  *
@@ -123,6 +126,10 @@ export class CodeBlockView implements MinimapHost {
 	/** 跟随滚动 / 尺寸变化刷新视窗与画面。 */
 	update(): void {
 		if (!this.wrapper.isConnected) return;
+		// 视口之外的代码块整帧跳过。下面的 textContent 读取是 O(全文) 的字符串
+		// 构建，而滚动时每一帧都会对所有已跟踪的代码块调用一次 update()；
+		// 长文档里绝大多数代码块都不在视口内，跳过它们能省掉大量无谓分配。
+		if (this.isFarOffscreen()) return;
 		const text = this.code.textContent ?? "";
 		if (text.length !== this.contentLength) {
 			this.contentLength = text.length;
@@ -131,6 +138,18 @@ export class CodeBlockView implements MinimapHost {
 			this.minimap?.setContent(text);
 		}
 		this.minimap?.update();
+	}
+
+	/**
+	 * 是否远离视口。
+	 * 用窗口视口而不是真实滚动容器：前者更大，所以判断只会偏保守（多算几次），
+	 * 不会把真正可见的代码块漏掉；而拿到真实滚动容器需要沿祖先链逐个读计算样式，
+	 * 那正是这里最想避免的开销。
+	 */
+	private isFarOffscreen(): boolean {
+		const rect = this.pre.getBoundingClientRect();
+		const viewHeight = this.pre.ownerDocument.defaultView?.innerHeight ?? 0;
+		return rect.bottom < -OFFSCREEN_MARGIN || rect.top > viewHeight + OFFSCREEN_MARGIN;
 	}
 
 	/** 宽度变化后只刷新布局，不重建 DOM。 */
