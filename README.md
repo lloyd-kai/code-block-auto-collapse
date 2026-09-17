@@ -44,6 +44,33 @@ The interface follows Obsidian's own language: it is English by default and swit
 | Interaction | click behavior (code position / mouse position), jump on, scroll only, hover preview, wheel moves preview |
 | Rendering | syntax highlighting, markers, marker pattern, marker font scale |
 
+## Styling
+
+The plugin decorates with a single wrapper class and a small set of CSS variables, so a theme or a CSS snippet can restyle it without touching Obsidian's own code.
+
+The wrapper is `.code-block-auto-collapse`. State lives in additional classes: `is-collapsed`, `has-code-minimap`, `is-minimap-left`. Inner elements use the `code-block-auto-collapse__` prefix — `__expand`, `__fade`, `__minimap`, `__minimap-canvas`, `__minimap-viewport`, `__lens`, `__lens-line`, `__lens-number`, `__lens-text`.
+
+| Variable | Controls | Written at runtime |
+|---|---|---|
+| `--cbac-preview-height` | Height kept visible while a block is collapsed | Yes — from **Preview lines** |
+| `--cbac-minimap-width` | Width of the minimap column | Yes — from **Minimap width** and the edge drag |
+| `--cbac-canvas-height` | Height of the minimap canvas | Yes |
+| `--cbac-viewport-color` | Fill of the viewport rectangle | Yes — from **Viewport color** |
+| `--cbac-viewport-color-strong` | Fill while the viewport is hovered or dragged | Yes |
+| `--cbac-viewport-border` | Border color of the viewport rectangle | Yes — from **Viewport border color** |
+| `--cbac-viewport-border-width` | Border width, in pixels | Yes — from **Viewport border width** |
+| `--cbac-fade-height` | Height of the fade above the expand button | **No** — CSS only |
+
+The last column is the one that matters. Seven of these are rewritten by the plugin on every layout pass, so overriding them in a snippet will not stick — change the matching setting instead. `--cbac-fade-height` is the only one that is yours to set:
+
+```css
+.code-block-auto-collapse {
+	--cbac-fade-height: 5em;
+}
+```
+
+Everything else is drawn from Obsidian's own variables — `--text-normal`, `--background-primary`, `--code-background`, `--font-monospace`, `--font-ui-small`, `--interactive-accent`, `--background-modifier-border` — so the plugin follows the active theme instead of hard-coding colors.
+
 ## Install
 
 ### From the release ZIP
@@ -79,7 +106,7 @@ tools/smoke-test.mjs                  Pure-logic smoke tests
 eslint.config.mjs                     ESLint config matching the official community plugin review
 .github/workflows/ci.yml              Lint, test and build on Linux and Windows for every push
 .github/workflows/release.yml         Tag-driven release: build, attest, draft the GitHub release
-.github/dependabot.yml                Weekly dependency and action version updates
+.github/dependabot.yml                Weekly dependency and action version updates, targeting develop
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/     Ready-to-copy plugin directory
 code-block-auto-collapse-<version>.zip  Release archive
@@ -219,6 +246,33 @@ MIT — see [LICENSE](LICENSE).
 | 视窗 | 视窗颜色、边框颜色、边框宽度 |
 | 交互 | 点击行为（按代码位置/按鼠标位置）、跳转时机、仅滚动、悬停预览、滚轮移动预览 |
 | 渲染 | 语法高亮、标记、标记模式、标记字号缩放 |
+
+## 自定义样式
+
+插件只用一层包装类加一组 CSS 变量来做装饰，主题或 CSS 片段可以直接改它，不必动 Obsidian 自身的代码。
+
+包装类是 `.code-block-auto-collapse`；状态用附加类表达：`is-collapsed`、`has-code-minimap`、`is-minimap-left`。内部元素统一 `code-block-auto-collapse__` 前缀 —— `__expand`、`__fade`、`__minimap`、`__minimap-canvas`、`__minimap-viewport`、`__lens`、`__lens-line`、`__lens-number`、`__lens-text`。
+
+| 变量 | 控制什么 | 是否由脚本写入 |
+|---|---|---|
+| `--cbac-preview-height` | 折叠时保留的高度 | 是 —— 来自**折叠时显示的行数** |
+| `--cbac-minimap-width` | 缩略图列宽 | 是 —— 来自**缩略图宽度**与内边缘拖拽 |
+| `--cbac-canvas-height` | 缩略图 canvas 高度 | 是 |
+| `--cbac-viewport-color` | 视窗矩形的填充色 | 是 —— 来自**视窗颜色** |
+| `--cbac-viewport-color-strong` | 视窗被悬停或拖拽时的填充色 | 是 |
+| `--cbac-viewport-border` | 视窗矩形边框色 | 是 —— 来自**视窗边框颜色** |
+| `--cbac-viewport-border-width` | 边框厚度（像素） | 是 —— 来自**视窗边框厚度** |
+| `--cbac-fade-height` | 展开按钮上方渐变遮罩的高度 | **否** —— 只由 CSS 决定 |
+
+最后一列是关键：其中 7 个在每次布局时都会被脚本重写，**在片段里覆盖它们不会生效**，要改请改对应的设置项。只有 `--cbac-fade-height` 是留给你的：
+
+```css
+.code-block-auto-collapse {
+	--cbac-fade-height: 5em;
+}
+```
+
+其余样式全部取自 Obsidian 自己的变量 —— `--text-normal`、`--background-primary`、`--code-background`、`--font-monospace`、`--font-ui-small`、`--interactive-accent`、`--background-modifier-border`，所以插件跟随当前主题，没有硬编码颜色。
 
 ## 安装
 

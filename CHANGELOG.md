@@ -9,6 +9,31 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+### Added
+
+- A Styling section in `README.md` (and 自定义样式 in the Chinese half)
+  documenting the wrapper class, the state classes, the inner-element prefix, and
+  the eight `--cbac-*` custom properties. Seven of them are rewritten by the
+  script on every layout pass, so only `--cbac-fade-height` can be overridden
+  from a CSS snippet; saying so in the README is cheaper than answering the
+  issue later.
+
+### Changed
+
+- `.github/dependabot.yml` now targets `develop` instead of the default branch.
+  Dependency upgrades are integration work, and `main` has to stay exactly equal
+  to the source of the published tag: the directory rebuilds the default branch
+  and compares the result against the release assets, so merging a dependency
+  pull request into `main` would be editing an already-released version. Without
+  `target-branch`, Dependabot aims at the default branch, and all three pull
+  requests it opened pointed at `main`.
+- The `types` group was split into `node-types` and `typescript`, and
+  `typescript` is now ignored from 6.1.0 upwards. `typescript-eslint` 8.x
+  declares `typescript >=4.8.4 <6.1.0`, and `eslint.config.mjs` enables
+  `projectService` for type-aware linting, so a newer compiler makes
+  `npm run lint` fail while `tsc --noEmit` and esbuild keep passing. Remove the
+  ignore once `typescript-eslint` supports the newer compiler.
+
 ## [1.0.1] - 2026-09-17
 
 ### Added

@@ -545,6 +545,10 @@ files outside the vault. Fully open source (MIT).
 
 **这些版本由 `.github/dependabot.yml` 维护**：每周一（Asia/Shanghai 09:00）各提一个 npm 依赖 PR 与一个 action 版本 PR，提交信息分别是 `chore(deps): …` 与 `ci(deps): …`。之所以把全部 action 合并进同一个 PR，就是因为上一条要求它们版本一致 —— 拆开提会出现「checkout 升了、setup-node 没升」的中间状态。Dependabot 的 PR 同样要过 CI 才能合。
 
+**目标分支必须是 `develop`，不能是默认分支。** `dependabot.yml` 的两块都显式写了 `target-branch: develop`。不写这一项时 Dependabot 指向仓库的默认分支（本仓库是 `main`），而官方目录会从**默认分支**重新构建并与 Release 附件比对（Build verification）—— 往 `main` 上直接合依赖 PR，等于在已发布的版本上改源码，构建产物一变验证立刻变红。依赖升级属于集成工作，应当先合 `develop`，随下一个版本一起进 `main`。
+
+**`typescript` 的大版本被 `ignore` 卡在 `<6.1.0`**：`typescript-eslint` 8.x 的 peer 约束是 `typescript >=4.8.4 <6.1.0`，而 `eslint.config.mjs` 开了 `projectService`（类型感知 lint）。装上更新的编译器后 `npm run lint` 会失败，但**同一提交上 `tsc --noEmit` 与 esbuild 都正常**（CI 的 `package` 任务是绿的，红的只有 `lint`）—— 别据此判断成编译器不兼容，跑去改 `tsconfig`。`@types/*` 与 `typescript` 也因此拆成两组，否则 `@types/node` 会被一起拖住。等 `typescript-eslint` 支持新版本后，删掉那条 `ignore`。
+
 ## 14. 参考资料
 
 - [Obsidian Plugin Developer Docs](https://docs.obsidian.md/Plugins)
