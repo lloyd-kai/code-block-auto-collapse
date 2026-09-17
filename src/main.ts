@@ -9,7 +9,7 @@ import {
 	normalizeSettings,
 	type CodeBlockSettings,
 } from "./settings";
-import { clamp, computedStyle, debounce, noopCancellable, throttleFrame, type Cancellable } from "./util/helpers";
+import { clamp, computedStyle, debounce, noopSchedulable, throttleFrame, type Cancellable, type Schedulable } from "./util/helpers";
 
 /** 设置变化后如何刷新已有代码块。 */
 export type SettingsUpdateMode = "rebuild" | "layout" | "content";
@@ -26,9 +26,9 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 	private readonly views = new Set<CodeBlockView>();
 	private readonly watchedDocuments = new Set<Document>();
 	private resizeObserver: ResizeObserver | null = null;
-	private scheduleUpdate: Cancellable = noopCancellable();
-	private scheduleSave: Cancellable = noopCancellable();
-	private scheduleRebuild: Cancellable = noopCancellable();
+	private scheduleUpdate: Cancellable = noopSchedulable();
+	private scheduleSave: Schedulable = noopSchedulable();
+	private scheduleRebuild: Cancellable = noopSchedulable();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -54,8 +54,11 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 	}
 
 	onunload(): void {
+		// 先结算待保存的设置，再停掉其它定时器。
+		// 设置写入是 400ms 防抖的，直接 cancel 会把最后一次改动一起丢掉 ——
+		// 改完设置（或拖完缩略图宽度）马上重载插件就会复现。
+		this.scheduleSave.flush();
 		this.scheduleUpdate.cancel();
-		this.scheduleSave.cancel();
 		this.scheduleRebuild.cancel();
 		for (const view of [...this.views]) view.destroy();
 		this.views.clear();

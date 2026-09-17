@@ -25,7 +25,8 @@ export function visualWidth(line: string): number {
 }
 
 /** 解析 `<code>` 的 textContent。 */
-export function parseCodeText(raw: string): ParsedCodeText {	const lines: string[] = [];
+export function parseCodeText(raw: string): ParsedCodeText {
+	const lines: string[] = [];
 	const lineOffsets: number[] = [];
 	const lineWidths: number[] = [];
 	let maxColumns = 1;

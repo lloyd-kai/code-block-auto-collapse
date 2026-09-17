@@ -70,6 +70,9 @@ export class CodeLens {
 	}
 
 	destroy(): void {
+		// 丢掉对整份源码的引用，别让预览比代码块活得久
+		this.lines = [];
+		this.visible = false;
 		this.el.remove();
 	}
 
