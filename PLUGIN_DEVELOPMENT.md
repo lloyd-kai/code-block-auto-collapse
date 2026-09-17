@@ -60,6 +60,7 @@ tools/package-release.mjs              同步 release/ 并打包发布 ZIP
 tools/validate-submission.mjs          提交前校验（manifest 约束、版本一致性、产物哈希、新流程硬约束）
 tools/smoke-test.mjs                   纯逻辑冒烟测试
 eslint.config.mjs                      官方社区插件审核用的 ESLint 配置
+.github/workflows/ci.yml               每次推送/PR 在 Linux + Windows 上跑 lint、测试、构建，并校验发布包
 .github/workflows/release.yml          打 tag 自动构建、生成产物溯源证明、建 draft Release
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/      可直接复制到 vault 的发布目录
@@ -283,7 +284,7 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 ### 13.2 版本与最低支持版本
 
 - `manifest.version` 用三段式 SemVer，只用数字和点。
-- `manifest.minAppVersion` 是**真实的最低版本**，不是越大越安全也不是越小越好。当前 `1.8.7` 是被 `getLanguage()` 顶上去的：界面文案要按 Obsidian 语言自动切换，而这个 API 从 1.8.7 才有。用不到的 API 不要写进 `minAppVersion`，写高了会白白挡掉老版本用户。
+- `manifest.minAppVersion` 是**真实的最低版本**，不是越大越安全也不是越小越好。当前 `1.13.0` 是被**声明式设置 API**（`getSettingDefinitions()`，1.13.0 起提供）顶上去的。用不到的 API 不要写进 `minAppVersion`，写高了会白白挡掉老版本用户；反过来，用了新 API 却不抬高，用户在旧版本上会直接报错。
 - `versions.json` 记录「插件版本 → 最低 Obsidian 版本」。当用户的 Obsidian 低于 `minAppVersion` 时，Obsidian 会来这里找兼容的旧版本，所以每次发版都要同步加一条。
 - 三个文件（`manifest.json`、`package.json`、`versions.json`）的版本必须一致，否则 `npm run release` 会告警。
 
@@ -395,21 +396,38 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 - [ ] 账号、付费功能、网络服务、vault 外文件访问、遥测、广告、闭源——每一项都要么明确写「无」，要么解释用途。本插件全部为「无」，见 README 的 Disclosures 一节。
 
-### 13.5 已知的两条咨询性告警
+### 13.5 设置页为什么用声明式 API
 
-`npm run lint` 目前剩 2 条 warning，都来自同一件事：`minAppVersion` 低于 `1.13.0`。
+`npm run lint` 目前是 **0 error、0 warning**。此前常驻的 2 条 warning 已随设置页迁移消除；这里记录结论与成因，避免日后重新踩坑。
 
-- `settings-tab/prefer-setting-definitions`：设置项不会出现在 Obsidian 1.13+ 的设置搜索里。
-- `@typescript-eslint/no-deprecated`：`PluginSettingTab.display()` 从 1.13.0 起被弃用。
+**两条 warning 的成因并不相同**，很容易混为一谈：
 
-这是**结构性取舍**，不是可以顺手修掉的疏漏：官方规则 `settings-tab/no-deprecated-display` 规定，只有在「已实现 `getSettingDefinitions()` **且** `minAppVersion ≥ 1.13.0`」时才禁止保留 `display()`；反过来 `settings-tab/require-display` 又要求 `minAppVersion < 1.13.0` 时必须提供 `display()`。两条规则合起来只有两种合法状态：
+| 规则 | 触发条件 | 消除方式 |
+|---|---|---|
+| `obsidianmd/settings-tab/prefer-setting-definitions` | `PluginSettingTab` 子类没有实现 `getSettingDefinitions()`。**没有任何版本条件。** | 实现 `getSettingDefinitions()`（`minAppVersion` 仍是 1.8.7 时也能消掉） |
+| `@typescript-eslint/no-deprecated` | `node_modules/obsidian/obsidian.d.ts` 里 `display()` 上的 JSDoc `@deprecated Since 1.13.0. Use {@link getSettingDefinitions} instead.`。**只取决于类型包版本**（当前 1.13.1），与 `minAppVersion` 无关。 | 只有删掉 `display()`。官方规则集不允许屏蔽该规则。 |
+
+所以**只有 Path A 能清零**：`minAppVersion` 抬到 `1.13.0` 且只保留 `getSettingDefinitions()`。
+
+官方指南 `_ref/dev-docs/en/Plugins/Guides/Migrate to declarative settings.md` 给出三条路，并明确「**优先 Path A**，只有当你有一批丢不掉的 < 1.13.0 老用户时才选 Path B」：
 
 | 方案 | 结果 |
 |---|---|
-| `minAppVersion < 1.13.0` + `display()` | 兼容老版本用户，保留这 2 条 warning（当前选择） |
-| `minAppVersion ≥ 1.13.0` + `getSettingDefinitions()` | 告警清零、设置可被搜索，但砍掉所有未升级到 1.13 的用户 |
+| Path A：`minAppVersion ≥ 1.13.0` + 只留 `getSettingDefinitions()` | 告警清零、设置进入全局搜索（**当前选择**） |
+| Path B：`minAppVersion < 1.13.0` + `display()` 与 `getSettingDefinitions()` 双实现 | 老版本可用，但 `no-deprecated` 仍在；两套实现必须长期保持同步 |
+| 保持原样 | 官方明确新 API 是 opt-in，两条 warning 会一直留着 |
 
-警告不阻塞 `eslint`（退出码 0）。若日后决定只支持 1.13+，把 `settings-tab.ts` 的 `display()` 换成声明式 `getSettingDefinitions()` 即可，其余代码不用动。
+本插件**尚未上架、装机量为零**，Path B 的前提（丢不掉的老用户）不成立；且 1.13.4 自 2026-07-30 起已是稳定版（1.14 还在 Catalyst 早期体验阶段）。
+
+**迁移实现要点（改设置页前必读）**
+
+- `getSettingDefinitions()` 在每次 `update()` **以及标签页注册时**（建立搜索索引）都会被调用，**必须保持轻量**：只拼数组和取文案，不要读文件、不要做重计算。
+- **必须覆写 `setControlValue()`**。默认实现直接写 `this.plugin.settings` 并自动 `saveData()`，会绕过 `plugin.updateSettings()` 的刷新分档 —— 改完设置要重载插件才生效。覆写后持久化由自己负责，本插件交给 `updateSettings()` 内部的防抖保存。
+- 刷新档位集中在 `UPDATE_MODE` 映射表里，按 `keyof CodeBlockSettings` 穷尽声明；新增设置字段却忘了归类会直接编译失败。
+- 重置按钮用 `action` 定义，刷新必须调 `this.update()` —— 1.13.0+ 上 `display()` 已被绕过。
+- 颜色控件在 `setControlValue` 里统一转小写再存：缩略图用颜色拼 `themeKey` 做样式缓存比对，大小写不一致会白白重绘。
+- 类型上 `SettingDefinitionItem` 含分组，**不能**直接当 `items` 的元素类型；`items` 只接受 `SettingDefinition`（分组不可嵌套）。
+- 风格硬约束（官方 Style guide）：**sentence case**、**顶层不加标题**、标题里不重复 "settings"、一行一个控件、`desc` 只写一句话。
 
 ### 13.6 可直接粘贴的文案
 
@@ -474,9 +492,22 @@ files outside the vault. Fully open source (MIT).
 
 **产物溯源证明的价值**：它让任何人都能验证「这份 `main.js` 确实由该 tag 对应的提交构建出来」。这也是社区目录愿意接受**私有源码仓库**的前提 —— 目录会拿公开 Release 的产物与私有仓库的源码做一致性校验。
 
+### 13.8 跨平台 CI（`.github/workflows/ci.yml`）
+
+推送或 PR 到 `main` / `develop` 时触发，做两件事：
+
+1. **`verify` 矩阵**：`ubuntu-latest` 与 `windows-latest` 上各跑一遍 `npm ci` → `npm run lint` → `npm test` → `npm run build`。`fail-fast: false`，一个平台挂了另一个也会跑完，便于一次看清差异。
+2. **`package`**：在 `ubuntu-latest` 上跑 `npm run release` + `npm run validate`，并把 ZIP 作为制品上传（便于直接下载 CI 实际校验过的那份包）。
+
+**为什么必须两个平台**：开发机是 Windows，而发布工作流跑在 `ubuntu-latest`。只在 Windows 上验证过的代码很容易把平台差异带进发布流程 —— 真实事故：`tools/smoke-test.mjs` 曾用 `new URL(...).pathname.replace(/^\//, "")` 转路径，Windows 下得到 `C:/Users/...`（碰巧还是绝对路径），Linux 下得到 `home/runner/...`（不以 `./` 开头的裸说明符，esbuild 报 `Could not resolve` 退出）。本地 38/38 全绿，打 tag 后发布工作流挂在 `Lint and test` 一步。
+
+**由此得出的硬规则**：`tools/` 与 `src/` 里**转路径一律用 `node:url` 的 `fileURLToPath` / `pathToFileURL`**，不要手写 `pathname` 处理；这类"只在本地是对的"的代码正是平台矩阵要挡的东西。
+
+**工作流里的 action 版本**：`checkout@v7`、`setup-node@v7`、`upload-artifact@v7`。`upload-artifact` 必须 ≥ v6 —— v4 仍指向 Node.js 20，运行器会强制它跑在 Node 24 上并每次报一条弃用告警。
+
 ## 14. 待提 issue 草稿
 
-新仓库的 issue 列表是空的。下面这批可以直接粘进 GitHub —— 本环境没有 API token，无法代你创建。每条都基于当前代码的真实状态，**没有虚构 bug**；前两条是真正的技术债，建议先提。
+新仓库的 issue 列表是空的。下面这批可以直接粘进 GitHub —— 本环境没有 API token，无法代你创建。每条都基于当前代码的真实状态，**没有虚构 bug**；其中「支持 Live Preview」与「测量渲染开销」是真正的技术债，建议先提。
 
 用法：仓库页 → **Issues** → **New issue** → 选对应模板 → 标题和正文照抄 → 提交后按「标签」一栏打标。
 
@@ -505,38 +536,7 @@ Two things worth deciding before writing code:
 - How do we avoid fighting the editor's own selection and cursor behaviour?
 ```
 
-### 14.2 Adopt the declarative settings API for Obsidian 1.13+
-
-- **标签**：`enhancement`
-- **背景**：见第 13.5 节。当前 `minAppVersion` 是 `1.8.7`，因此必须保留 `display()`，于是 `npm run lint` 常驻 2 条 warning。
-
-```text
-Title: Adopt getSettingDefinitions() for Obsidian 1.13+
-```
-
-```markdown
-`npm run lint` reports two advisory warnings that are a deliberate trade-off, not
-an oversight:
-
-- `settings-tab/prefer-setting-definitions` — settings do not appear in Obsidian's
-  settings search on 1.13.0 or later.
-- `@typescript-eslint/no-deprecated` — `PluginSettingTab.display()` is deprecated
-  since 1.13.0.
-
-They come from `minAppVersion` being `1.8.7`. The official rule set leaves exactly
-two legal states:
-
-| State | Result |
-|---|---|
-| `minAppVersion < 1.13.0` + `display()` | Works on older Obsidian, keeps both warnings (current) |
-| `minAppVersion >= 1.13.0` + `getSettingDefinitions()` | Warnings gone, settings searchable, drops every user below 1.13 |
-
-This issue is the place to decide when to move. Migrating means rewriting
-`src/settings-tab.ts` to return setting definitions and raising `minAppVersion` to
-`1.13.0` in `manifest.json` and `versions.json`.
-```
-
-### 14.3 Remember which code blocks the user expanded
+### 14.2 Remember which code blocks the user expanded
 
 - **标签**：`enhancement`
 
@@ -584,7 +584,7 @@ Please post the numbers in this issue before proposing a change, so the fix can 
 judged against a baseline.
 ```
 
-### 14.5 Add screenshots and a demo GIF to the README
+### 14.4 Add screenshots and a demo GIF to the README
 
 - **标签**：`documentation`, `good first issue`
 - **背景**：README 目前 0 张图。对这类「视觉收益」明显的插件来说，一张图比一段文字有效得多。
@@ -658,7 +658,7 @@ Note that Obsidian already shows its own copy button on code blocks; check
 whether the two can coexist without crowding the corner.
 ```
 
-### 14.8 Add a command to collapse or expand every code block in a note
+### 14.7 Add a command to collapse or expand every code block in a note
 
 - **标签**：`enhancement`
 
