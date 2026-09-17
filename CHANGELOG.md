@@ -26,10 +26,14 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   Bash sandbox: the bundled PortableGit 2.55 reports success while writing
   nothing for refs nested deeper than `.git/refs/<name>/<file>` inside the
   workspace. `feature/*` branches silently became unborn and `git merge` could
-  discard uncommitted work through autostash. The guard picks a working git,
-  verifies that a ref-mutating command actually produced its ref, and fails
-  loudly when it did not. It is now the first step of `npm run preflight`; the
-  reproduction matrix is in `PLUGIN_DEVELOPMENT.md` section 15.
+  discard uncommitted work through autostash. The same defect also makes a
+  branch switch delete a whole directory instead of the one file that actually
+  differs, so the guard additionally checks for tracked files reported as
+  deleted after `checkout`, `switch`, `merge`, `pull`, `rebase`, `cherry-pick`,
+  `revert`, and `reset`. The guard picks a working git, verifies the result of
+  every ref-mutating command, and fails loudly when it is wrong. It is now the
+  first step of `npm run preflight`; the reproduction matrix is in
+  `PLUGIN_DEVELOPMENT.md` section 15.
 
 ### Changed
 
