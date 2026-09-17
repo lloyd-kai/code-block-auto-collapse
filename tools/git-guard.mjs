@@ -24,13 +24,18 @@
 // refs/tags/<a>/<b>。不受影响：refs/heads/<单层名>、refs/stash、ORIG_HEAD。
 //
 // 本脚本做两件事：
-//   node tools/git-guard.mjs --diagnose        逐个探测候选 git，报告当前目录下哪个可用
-//   node tools/git-guard.mjs <git 参数...>      用可用的 git 执行，并在执行后校验结果
+//   node tools/git-guard.mjs --diagnose [--soft]   逐个探测候选 git，报告当前目录下哪个可用
+//   node tools/git-guard.mjs <git 参数...>          用可用的 git 执行，并在执行后校验结果
+//
+// --soft 把诊断结论降级成纯告警（退出码始终 0）。npm run git:check 走的就是 soft：
+// 诊断结果取决于机器环境（有没有装系统版 git、目录是不是被同步盘/杀软接管、
+// 仓库是不是 linked worktree），它不该有能力挡住 npm run preflight 这条发版闸门。
+// 需要硬性拦截时用 npm run git:check:strict。
 //
 // 探测只动 ref，不碰工作区，且一定会把探针 ref 删掉。
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -71,11 +76,27 @@ function gitDirOf(git) {
 }
 
 /**
+ * refs 实际落盘的那个目录。
+ *
+ * 不能用 --absolute-git-dir：在 linked worktree / submodule 里，git 目录是
+ * `.git/worktrees/<name>`，而 refs 存在**公共**目录下。拿前者拼路径永远找不到探针
+ * 文件，会把一个完全正常的 git 判成「危险」。
+ */
+function gitCommonDirOf(git) {
+	const result = run(git, ["rev-parse", "--git-common-dir"]);
+	if (result.error || result.status !== 0) return null;
+	const value = (result.stdout ?? "").trim();
+	if (value.length === 0) return null;
+	// 该命令可能返回相对路径（通常是 ".git"），要按仓库根目录还原
+	return isAbsolute(value) ? value : resolve(repoRoot, value);
+}
+
+/**
  * 探测一个 git 能不能在当前目录写出带斜杠的 ref。
  * 只创建再删除一个 ref，不动工作区、不动 HEAD。
  */
 function probe(git) {
-	const gitDir = gitDirOf(git);
+	const gitDir = gitCommonDirOf(git) ?? gitDirOf(git);
 	if (!gitDir) return { ok: false, reason: "不是 git 仓库，或该 git 无法读取仓库" };
 
 	const head = run(git, ["rev-parse", "--verify", "--quiet", "HEAD"]);
@@ -97,7 +118,7 @@ function probe(git) {
 	return { ok: onDisk && seen, onDisk, seen, refFile };
 }
 
-function diagnose() {
+function diagnose(soft) {
 	console.log(`仓库根目录：${repoRoot}`);
 	console.log(`探针 ref：  ${PROBE_REF}\n`);
 
@@ -123,6 +144,10 @@ function diagnose() {
 	if (usable.length === 0) {
 		console.error("没有任何可用的 git：当前目录下所有候选都会静默丢失带斜杠的 ref。");
 		console.error("不要在此环境下执行 checkout -b / branch / merge / fetch，会丢改动。");
+		if (soft) {
+			console.error("（--soft：以上仅为告警，不影响退出码）");
+			return;
+		}
 		process.exitCode = 1;
 		return;
 	}
@@ -140,12 +165,30 @@ const READ_ONLY_COMMANDS = new Set([
 	"merge-base", "count-objects", "version", "help", "check-ignore", "verify-commit",
 ]);
 
-function isReadOnly(args) {
-	for (const arg of args) {
+/**
+ * 会吃掉一个值的**全局**选项，出现在子命令之前。
+ * `git -c merge.autostash=false merge ...` 这种写法必须先把 `-c` 和它的值跳过去，
+ * 否则会把 `merge.autostash=false` 当成子命令（进而当成 ref 名）。
+ */
+const GLOBAL_VALUE_FLAGS = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
+
+/** 子命令在参数里的下标；全是选项时返回 -1。 */
+function subcommandIndex(args) {
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (GLOBAL_VALUE_FLAGS.has(arg)) {
+			index += 1;
+			continue;
+		}
 		if (arg.startsWith("-")) continue;
-		return READ_ONLY_COMMANDS.has(arg);
+		return index;
 	}
-	return false;
+	return -1;
+}
+
+function isReadOnly(args) {
+	const command = subcommandIndex(args);
+	return command >= 0 && READ_ONLY_COMMANDS.has(args[command]);
 }
 
 /**
@@ -154,33 +197,58 @@ function isReadOnly(args) {
  */
 const DESTRUCTIVE_FLAGS = new Set(["-d", "-D", "-m", "-M", "--delete", "--move"]);
 
-/** 从参数里挑出这条命令「本应创建」的 ref，用于执行后校验。 */
+/**
+ * 列举 / 筛选类选项：出现它们时，参数里的名字是过滤条件而不是要创建的 ref。
+ * 少了这一条，`git branch --list feature/*`、`git tag -l 'v*'`、`git branch -a`
+ * 都会被当成「执行后 ref 不存在」而误报。
+ */
+const LISTING_FLAGS = new Set([
+	"-l", "--list", "-a", "--all", "-r", "--remotes", "-v", "-vv", "-i", "--ignore-case",
+	"--contains", "--no-contains", "--merged", "--no-merged", "--points-at",
+	"--format", "--sort", "--column", "--no-column", "--omit-empty",
+]);
+
+/** 带通配符的名字一定是模式，不是具体 ref。 */
+function isPattern(value) {
+	return /[*?[\]]/.test(value);
+}
+
+/**
+ * 从参数里挑出这条命令「本应创建」的 ref，用于执行后校验。
+ * 只认真的会建 ref 的几个子命令，其余一律返回空数组 —— 宁可漏报也不误报：
+ * 一次误报就会把一条正确的 git 命令标成「沙箱丢写」。
+ */
 function expectedRefs(args) {
+	const command = subcommandIndex(args);
+	if (command < 0) return [];
+	const name = args[command];
+	const rest = args.slice(command + 1);
+
+	for (const arg of rest) {
+		if (DESTRUCTIVE_FLAGS.has(arg) || LISTING_FLAGS.has(arg)) return [];
+	}
+
 	const refs = [];
-	const take = (index) => {
-		const value = args[index + 1];
-		if (value && !value.startsWith("-")) refs.push(value);
+	const take = (offset) => {
+		const value = rest[offset];
+		if (value && !value.startsWith("-") && !isPattern(value)) refs.push(value);
 	};
-	for (let index = 0; index < args.length; index++) {
-		const arg = args[index];
-		if (DESTRUCTIVE_FLAGS.has(arg)) return [];
-		if (arg === "-b" || arg === "-B" || arg === "-c" || arg === "-C" || arg === "--create" || arg === "--orphan") {
-			take(index);
-			continue;
+
+	if (name === "checkout" || name === "switch") {
+		for (let index = 0; index < rest.length - 1; index++) {
+			if (["-b", "-B", "-c", "-C", "--create", "--orphan"].includes(rest[index])) take(index + 1);
 		}
-		if (arg === "branch" || arg === "tag") {
-			// `git branch` 可能跟一串选项，取第一个非选项参数当分支名
-			for (let next = index + 1; next < args.length; next++) {
-				if (!args[next].startsWith("-")) {
-					refs.push(args[next]);
-					break;
-				}
-			}
-			continue;
-		}
-		if (arg === "update-ref" || arg === "symbolic-ref") {
-			take(index);
-		}
+		return refs;
+	}
+	if (name === "branch" || name === "tag") {
+		// `git branch` 可能跟一串选项，取第一个非选项参数当分支名
+		const first = rest.find((value) => !value.startsWith("-"));
+		if (first && !isPattern(first)) refs.push(first);
+		return refs;
+	}
+	if (name === "update-ref" || name === "symbolic-ref") {
+		take(0);
+		return refs;
 	}
 	return refs;
 }
@@ -223,27 +291,38 @@ const WORKTREE_COMMANDS = new Set([
 ]);
 
 function touchesWorktree(args) {
-	for (const arg of args) {
-		if (arg.startsWith("-")) continue;
-		return WORKTREE_COMMANDS.has(arg);
-	}
-	return false;
+	const command = subcommandIndex(args);
+	return command >= 0 && WORKTREE_COMMANDS.has(args[command]);
 }
 
-/** 工作区里有没有「已跟踪文件被删」。有就说明沙箱把整个目录删掉了。 */
-function verifyWorktree(git) {
+/** 当前工作区里「已跟踪文件被删（未暂存）」的路径集合；读不到时返回 null。 */
+function deletionsNow(git) {
 	const result = run(git, ["status", "--porcelain"]);
-	if (result.status !== 0) return [];
-	const deleted = (result.stdout ?? "")
-		.split("\n")
-		.filter((line) => /^ D /.test(line))
-		.map((line) => line.slice(3).trim());
-	if (deleted.length === 0) return [];
+	if (result.status !== 0) return null;
+	return new Set(
+		(result.stdout ?? "")
+			.split("\n")
+			.filter((line) => /^ D /.test(line))
+			.map((line) => line.slice(3).trim())
+	);
+}
+
+/**
+ * 工作区里有没有**新出现**的「已跟踪文件被删」。
+ *
+ * 必须和命令执行前的快照对比：用户自己故意删掉一个文件（未暂存）之后再 merge，
+ * 那个删除不是沙箱干的。只有这条命令执行后才冒出来的删除才是陷阱。
+ */
+function verifyWorktree(git, before) {
+	const after = deletionsNow(git);
+	if (after === null || before === null) return [];
+	const fresh = [...after].filter((path) => !before.has(path));
+	if (fresh.length === 0) return [];
 
 	// 恢复要按目录来 —— 被删的往往是整个目录，而不是这几个文件
-	const dirs = [...new Set(deleted.map((path) => (path.includes("/") ? path.split("/")[0] : path)))];
+	const dirs = [...new Set(fresh.map((path) => (path.includes("/") ? path.split("/")[0] : path)))];
 	return [
-		`工作区里这些已跟踪文件被删掉了：${deleted.join("、")}`,
+		`工作区里这些已跟踪文件被删掉了：${fresh.join("、")}`,
 		`沙箱在切换分支时会把整个目录删掉，用 \`git checkout -- ${dirs.join(" ")}\` 恢复`,
 	];
 }
@@ -261,8 +340,9 @@ function pickGit(requireProbe) {
 function main() {
 	const args = process.argv.slice(2);
 
-	if (args.length === 0 || args[0] === "--diagnose") {
-		diagnose();
+	// `--soft` 只在诊断模式下有意义，这样 `git reset --soft HEAD~1` 不会被误吃掉
+	if (args.length === 0 || args.includes("--diagnose")) {
+		diagnose(args.includes("--soft"));
 		return;
 	}
 
@@ -276,6 +356,10 @@ function main() {
 	}
 
 	const beforeHead = readOnly ? "" : currentHead(git);
+	// 只在命令确实会动工作区时才取快照，省掉一次多余的 git 调用
+	const watchWorktree = !readOnly && touchesWorktree(args);
+	const beforeDeletions = watchWorktree ? deletionsNow(git) : null;
+
 	const result = run(git, args, { inherit: true });
 	if (result.error) {
 		console.error(`执行失败：${result.error.message}`);
@@ -288,7 +372,7 @@ function main() {
 	const problems =
 		readOnly || result.status !== 0
 			? []
-			: [...verifyAfter(git, args, beforeHead), ...(touchesWorktree(args) ? verifyWorktree(git) : [])];
+			: [...verifyAfter(git, args, beforeHead), ...(watchWorktree ? verifyWorktree(git, beforeDeletions) : [])];
 	if (problems.length > 0) {
 		console.error("");
 		console.error("⚠️  git 命令返回了成功，但结果不对：");
