@@ -46,6 +46,20 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   for them — which is why the change is provably inert rather than merely
   plausible.
 
+### Fixed
+
+- The Chinese half of `README.md` still advertised version 1.0.0 and told readers
+  to unzip `code-block-auto-collapse-1.0.0.zip`, a file that does not exist. The
+  English half had been updated and the other half was missed, which is the
+  failure mode of keeping two parallel translations in one file: a version bump
+  is only done when both halves agree, and nothing was checking that.
+- The Chinese command list was missing `lint`, `validate`, and `weights`, so it
+  described a smaller set of checks than the English one.
+- The release walkthrough in `PLUGIN_DEVELOPMENT.md` used `1.0.0` in its
+  `git tag` example, so anyone following it literally would have collided with
+  the tag that already exists. It now uses a `<version>` placeholder with the
+  naming rule stated inline.
+
 ## [1.0.1] - 2026-09-17
 
 ### Added

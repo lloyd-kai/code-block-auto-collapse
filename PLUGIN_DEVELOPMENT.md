@@ -342,13 +342,13 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 4. 把插件源码推到 GitHub 公开仓库（根目录含 `README.md`、`LICENSE`、`manifest.json`）。分支模型见 `CONTRIBUTING.md`：`main` 存已发布状态，`develop` 是集成分支，发版走 `release/<version>`，修线上 bug 走 `hotfix/<version>`，合并一律 `--no-ff`。
 
    > **目录读的是「默认分支 HEAD 上的 `manifest.json`」**，所以 `main` 必须是 GitHub 的默认分支，不要设成 `develop`。`develop` 上的 `manifest.version` 是尚未发布的下一版，目录会找不到对应 Release（旧流程下这个报错是 `No release matches your manifest version`，新流程下表现为条目一直装不上）。
-5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.0` 而不是 `v1.0.0`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意 —— 目录不使用 Release 名称。
+5. 创建 GitHub Release：Tag **必须与 `manifest.version` 完全一致且不带 `v` 前缀**（`1.0.1` 而不是 `v1.0.1`），且打在 `main` 上。把 `main.js`、`manifest.json`、`styles.css` 三个文件作为二进制附件上传。Release 名称与描述随意 —— 目录不使用 Release 名称。
 
    这一步已经自动化，**推荐直接推 tag，不要手工上传**：
 
    ```bash
-   git tag -a 1.0.0 -m "1.0.0"
-   git push origin 1.0.0
+   git tag -a <version> -m "<version>"   # <version> 与 manifest.json 里的完全一致，不带 v
+   git push origin <version>
    ```
 
    `.github/workflows/release.yml` 会校验 tag 与 `manifest.version` 一致、跑 lint 与测试、构建、生成产物溯源证明，最后建一个 **draft** Release 并附上三个文件。到 Releases 页补好发布说明再 **Publish release** 即可。原理与注意事项见 13.7。

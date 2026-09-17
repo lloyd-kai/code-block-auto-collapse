@@ -205,7 +205,7 @@ MIT — see [LICENSE](LICENSE).
 
 [English](#code-block-auto-collapse) · **中文**
 
-**版本 1.0.0** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
+**版本 1.0.1** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
 
 一段长代码会把整篇笔记挤没。这个插件让代码块在阅读视图里保持紧凑，并为特别长的代码块配一个真正的代码缩略图 —— 你既能一眼看出代码的形状，也能直接跳转，不用滚过几百行样板代码。
 
@@ -278,7 +278,7 @@ MIT — see [LICENSE](LICENSE).
 
 ### 用发布包
 
-把 `code-block-auto-collapse-1.0.0.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
+把 `code-block-auto-collapse-1.0.1.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
 
 包内恰好三个文件 —— `main.js`、`manifest.json`、`styles.css`，位于 `code-block-auto-collapse/` 目录下。它由 `npm run release` 生成，始终与当前构建一致。
 
@@ -298,8 +298,11 @@ MIT — see [LICENSE](LICENSE).
 
 - `npm run build` —— `tsc --noEmit` 类型检查 + esbuild 打包。
 - `npm test` —— 纯逻辑冒烟测试（几何、文本解析、权重表），不需要 DOM。
+- `npm run lint` —— 官方 [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) 规则集，也就是 Obsidian 审阅人比对的那套。当前 **0 error、0 warning**。
 - `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
+- `npm run validate` —— 把上架要求变成机械断言：manifest 字段约束、版本号一致、三份 `main.js` 逐字节相同，以及扫描器会查的几条硬规则（`main.js` 不得被 Git 跟踪、README 必须有披露章节、`package.json` 必须有扫描器认得的构建脚本）。
 - `npm run preflight` —— `lint → test → release → validate`，发版前跑这一条。
+- `npm run weights` —— 重新生成 `src/render/character-weights.ts`，需要先 `git clone --depth 1 https://github.com/Nasller/CodeGlancePro.git _CodeGlancePro`。生成表已提交，只在复核数值时才需要。
 
 ## 发布与上架
 
