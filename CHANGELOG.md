@@ -59,6 +59,14 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `git tag` example, so anyone following it literally would have collided with
   the tag that already exists. It now uses a `<version>` placeholder with the
   naming rule stated inline.
+- Both halves of the README called `main.js` a "readable esbuild bundle" in the
+  disclosures. It is minified, and a disclosure is the worst place to describe
+  something inaccurately. What the row actually needs to establish is that the
+  build is reproducible from the published source, which it is, so it now says
+  that instead.
+- The Chinese support section did not point at the private vulnerability
+  reporting path, so a Chinese-speaking reader who found something exploitable
+  had only the public issue tracker to go on.
 
 ## [1.0.1] - 2026-09-17
 

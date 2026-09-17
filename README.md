@@ -183,7 +183,7 @@ Obsidian's [developer policies](https://docs.obsidian.md/Community+directory/Dev
 | Ads (dynamic or static) | None. |
 | Files read or written outside the vault | None. The plugin does not touch the filesystem at all. |
 | Node.js or Electron APIs | None, so `isDesktopOnly` is `false` and the plugin runs on mobile. |
-| Obfuscated or minified-only source | None. `main.js` is a readable esbuild bundle built from the `src/` tree in this repository. |
+| Obfuscated or minified-only source | None. `main.js` is a standard esbuild bundle built from the `src/` tree in this repository — minified, but not obfuscated, and reproducible from the published source. |
 
 **What the plugin does touch.** It only decorates the DOM that Obsidian has already rendered in Reading view. It never writes to your Markdown files, and it never modifies your vault. Removing the plugin leaves every note byte-for-byte unchanged.
 
@@ -331,7 +331,7 @@ Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Devel
 | 广告（动态或静态） | 无。 |
 | 读写 vault 之外的文件 | 无。插件完全不碰文件系统。 |
 | Node.js 或 Electron API | 未使用，因此 `isDesktopOnly` 为 `false`，移动端可用。 |
-| 混淆或仅提供压缩代码 | 无。`main.js` 是由本仓库 `src/` 构建出的可读 esbuild 产物。 |
+| 混淆或仅提供压缩代码 | 无。`main.js` 是由本仓库 `src/` 构建出的标准 esbuild 产物 —— 经过压缩但未混淆，可从公开源码复现。 |
 
 **插件实际触碰的东西。** 它只装饰 Obsidian 已在阅读视图中渲染好的 DOM，从不写入你的 Markdown 文件，也不修改 vault。卸载插件后，每篇笔记都保持原样。
 
@@ -340,6 +340,8 @@ Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Devel
 ## 反馈
 
 发现 bug 或想要新功能？到 [github.com/lloyd-kai/code-block-auto-collapse/issues](https://github.com/lloyd-kai/code-block-auto-collapse/issues) 提 issue。
+
+如果是可被利用的安全问题，请走[私下报告漏洞](https://github.com/lloyd-kai/code-block-auto-collapse/security/advisories/new)，不要开公开 issue —— 见 [SECURITY.md](.github/SECURITY.md)。
 
 ## 许可
 
