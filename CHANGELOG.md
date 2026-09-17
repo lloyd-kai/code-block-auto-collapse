@@ -90,6 +90,15 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `develop`. A published convention that the project's own commits routinely break
   is worse than no convention, because a contributor reads it as a rule and then
   has to guess which parts of it are real.
+- `.github/SECURITY.md` linked to the README as `README.md`, which resolves to
+  `.github/README.md` — a file that does not exist. A security policy is the one
+  document a reader arrives at while looking for somewhere to report something
+  privately, so a dead link there is the worst place to have one. `npm run
+  validate` now checks that every relative link and image in every tracked
+  Markdown file resolves. That check earns its place beyond this bug: the
+  directory listing rewrites the README's relative links to resolve against the
+  repository, so a typo becomes a dead link on a public page rather than a local
+  annoyance.
 
 ## [1.0.1] - 2026-09-17
 
