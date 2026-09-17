@@ -234,6 +234,27 @@ if (readme && manifest) {
 	}
 }
 
+// 条目页会展示 README 的摘录，并把其中的相对链接与图片重写为指向仓库。
+// 所以写错的相对路径不是「文档小瑕疵」，而是公开页面上的断链。
+// 覆盖所有被跟踪的 .md：`.github/SECURITY.md` 曾经用 `README.md` 指自己所在目录，应为 `../README.md`。
+const docFiles = gitTracked(["*.md"]);
+if (docFiles === null) {
+	warn("环境里没有 git，跳过文档相对链接检查");
+} else {
+	for (const file of docFiles) {
+		const text = readFileSync(join(root, file), "utf8");
+		for (const match of text.matchAll(/!?\[[^\]]*\]\(([^)\s]+?)\)/g)) {
+			const target = match[1];
+			if (/^(https?:|mailto:|#)/.test(target)) continue;
+			const relative = decodeURIComponent(target.split("#")[0]);
+			if (!relative) continue;
+			if (!existsSync(resolve(root, dirname(file), relative))) {
+				fail(`${file} 里的相对链接指向不存在的路径：${target}`);
+			}
+		}
+	}
+}
+
 /* ---------- 4. 新流程约束（community.obsidian.md） ---------- */
 
 // 社区目录的扫描器按顺序取第一个存在的构建命令。
