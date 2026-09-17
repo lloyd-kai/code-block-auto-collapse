@@ -217,9 +217,11 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 没有移植的部分：VCS / 错误条高亮、书签标记、Diff 编辑器、控制台编辑器、隐藏原生滚动条、悬停滚动条显示缩略图——这些依赖 IDE 的编辑器模型，在阅读视图里没有对应概念。
 
-## 11. 1.0.0 修复与修正
+## 11. 修复与修正
 
-### 功能性 bug
+### 11.1 1.0.0 之前
+
+#### 功能性 bug
 
 1. **事件监听器泄漏**：`window` 上的 `pointermove` / `pointerup` 直接注册且从不移除，插件禁用后仍持有 DOM 引用。现在改用 Pointer Capture，容器上监听即可，`onunload` 也会销毁全部视图。
 2. **禁用插件不还原 DOM**：没有 `onunload`，wrapper 留在页面上。现在会把 `<pre>` 还原回原位。
@@ -233,14 +235,14 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 10. **弹出窗口不更新**：只监听主 `document` 的滚动，且刷新时只扫描 `.markdown-preview-view`。现在按 `ownerDocument` 注册监听（`window-open`），刷新基于已注册视图回溯根节点。
 11. **主题切换后颜色不更新**：颜色缓存没有失效机制。现在监听 `css-change` 并重建调色板与 token 区间。
 
-### 性能
+#### 性能
 
 12. **颜色查找是 O(字符数 × 区间数)**：每个字符都做一次线性 `find`。改为单向前进游标 + 有界回溯。
 13. **重复的样式计算**：每个文本节点一次 `getComputedStyle`，每次重绘都重新采集调色板。改为按 className 缓存、按元素缓存区间。
 14. **滚动时强制同步布局**：每个缩略图每帧都要用 `getComputedStyle` 向上找滚动容器。现在滚动容器按视图缓存，且离开可视区域的代码块直接跳过。
 15. **改设置就重建整篇文档**：滑条每次 `input` 都还原并重新包装所有代码块。现在分三档更新 + 防抖（见第 9 节）。
 
-### 健壮性与无障碍
+#### 健壮性与无障碍
 
 16. **设置缺少校验**：早期只对 `minimapWidth` 做了历史回退，其他字段出现 `NaN` / 越界 / 类型错误会直接破坏渲染。现在逐字段收敛。
 17. **键盘无法展开**：按钮用 `display:none` 隐藏时不可聚焦。现在保留 Tab 可达并补 `aria-expanded`。
@@ -249,11 +251,37 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 20. **`color-mix` 兼容性**：视窗颜色原先依赖 `color-mix()`，不可用时整条声明失效。现在在脚本侧算成 `rgba()`。
 21. **CSS 重复声明**：`width` 写了三次、`border` 与 `border-left` 重复，已重写为变量驱动的样式表。
 
-### 工程
+#### 工程
 
 22. **版本与元数据**：`minAppVersion` 从 `0.15.0` 调整为与**实际使用的 API** 对齐——重构时先定 `1.4.0`，后来界面文案需要 `getLanguage()`（1.8.7 起提供）而改为 `1.8.7`；补 `versions.json` 与 `LICENSE`。
 23. **发布目录结构**：文档描述的是 `release/code-block-auto-collapse/`，实际是平铺，已统一。
 24. **单文件源码**：436 行的 `src/main.ts` 拆成 16 个模块，纯逻辑（几何、文本、权重）与 DOM 解耦，可以直接在 Node 里测试。
+
+### 11.2 1.0.1
+
+#### 性能
+
+25. **`code.textContent` 在每帧路径上被直接读取**。这是最值得记住的一条：`textContent` 是 **O(全文)** 的字符串构建，一个两万行的代码块每帧要重新分配约 0.6MB。上一轮加过「离屏就跳过」，但那道闸门**对「代码块本身就是整个视口」的情况完全无效** —— 这种块永远不算离屏。只加视口筛选等于没修。现在 `CodeBlockView.update()` 有两道闸门：`isFarOffscreen()`（廉价视口筛）+ `contentDue()`（400ms 时间闸门）。阅读视图内容基本静态，所以时间闸门看不出来，而缩略图几何刷新不受它影响、仍然每帧同步。
+26. **`CodeMinimap.update()` 的顺序反了**：它先走 `host.getScrollContainer()` —— 沿祖先链逐个读 computed style 与 `scrollHeight`/`clientHeight` —— 才判断这个块在不在屏幕上。廉价的视口筛现在提到前面，离屏块直接跳过整段昂贵的回溯。
+27. **超过「渲染缩略图的最大行数」的块仍在重建逐行代表数组**：虽然一行都不会被画出来，每次几何变化照样重建一遍。
+
+#### 功能性 bug
+
+28. **折叠标记重算了但没重新应用**：代码块内容缩到折叠阈值以下时，`collapsible` 会重新计算，但 `is-collapsed` 类没有被同步撤销。结果是内容被 CSS 夹住（看起来仍是折叠的），而按钮却显示「收起」。**重算状态与把状态应用到 DOM 是两件事，少一步就出现这种自相矛盾的界面。**
+29. **防抖保存被卸载流程取消**：`saveData()` 有 400ms 防抖，而 `onunload()` 会把待执行的调用取消掉。于是「改完设置马上重载插件或退出 Obsidian」这一小段时间窗口里的改动会被静默丢弃 —— 用户会以为是设置没保存。现在防抖对象暴露 `flush()`，卸载时先把待写的数据落盘再拆其余东西。
+30. **右键也触发跳转**：`Jump on` 设为 `Pointer up` 时，任何按键松开都会跳，包括右键。现在只认真正的左键释放。
+
+#### 健壮性
+
+31. **悬停预览持有已销毁代码块的全量源码**：`code-lens` 在块被销毁后仍引用着它的完整文本，等于把一个长字符串一直钉在内存里。
+
+#### 工程
+
+32. **`npm run release` 在旧版 Node 上的报错完全看不懂**：`tools/package-release.mjs` 用 `node:zlib` 的 `crc32`，它需要 Node ≥ 20.15 / 22.2。低版本上静态 `import { crc32 }` 抛的是模块解析期的 `SyntaxError`（`does not provide an export named 'crc32'`），看不出与版本有关。改成**动态 import + 显式版本检查**，报错直接说明找到的版本和需要的版本。**同类「工具链报错指向错误方向」的问题都该这么处理。**
+33. **守门脚本的误报比漏报更糟**。`tools/git-guard.mjs` 会把 `git -c key=value <cmd>` 里的 `key=value` 当成 ref 名（**而这恰好是推荐用来关掉 autostash 的写法**），把 `git branch --list <pattern>` / `git tag -l <pattern>` / `git branch -a` 当成「建了但没落盘」的分支，还把命令执行**之前就存在**的未暂存删除算到这条命令头上。误报会训练人忽略真告警，所以策略改成**宁可漏报也不误报**：只认真的会创建 ref 的子命令（`checkout` / `switch` / `branch` / `tag` / `update-ref` / `symbolic-ref`），其余一律返回空；删除检测改成前后快照对比，只报**新增**的删除。
+34. **linked worktree / submodule 被误判成「危险环境」**：探针原来用 `git rev-parse --absolute-git-dir` 拼 refs 路径，但 linked worktree 的 git 目录是 `.git/worktrees/<name>`，而 refs 存在**公共**目录下。改用 `--git-common-dir`。
+35. **`npm run git:check` 不再有资格挡住发版**：它的结论取决于机器环境（有没有系统版 git、是不是 linked worktree、目录有没有被同步盘或杀软接管），**环境相关的检查不该进构建闸门**。默认走 `--soft`（只告警、退出码恒 0），要硬性拦截用 `git:check:strict`。它仍是 `preflight` 的第一环，只是不再能让构建失败。
+36. **`minAppVersion` 抬到 `1.13.0`**：见 13.5 —— 被声明式设置 API 顶上去的，不是安全余量。
 
 ## 12. 测试
 

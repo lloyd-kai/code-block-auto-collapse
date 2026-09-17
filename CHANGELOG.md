@@ -25,8 +25,23 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `merge`, `pull`, `rebase`, `cherry-pick`, `revert`, and `reset`. The guard
   picks a working Git, verifies the result of every ref-mutating command, and
   fails loudly when the result is wrong.
+- `.github/dependabot.yml`, which takes over tracking the pinned action versions
+  and the npm dependencies, one grouped pull request per ecosystem per week.
+  `upload-artifact` had already been left pointing at Node.js 20 while the runner
+  forced it onto Node.js 24, and nothing was watching for that.
+- `.github/SECURITY.md`, documenting the private vulnerability reporting path.
 
 ### Changed
+
+- `PLUGIN_DEVELOPMENT.md` no longer carries the two sections that only applied to
+  the machine this was developed on: the draft issue list and the notes on the
+  shell sandbox's Git defect, including local absolute paths and internal tool
+  names. Both moved to a local, uncommitted file. The published guide keeps the
+  architecture, API, rendering and release material, and section 11 now records
+  the bug history of both releases.
+- `npm run validate` now asserts that every local-only path is untracked, not
+  just `main.js`. `.gitignore` does not stop `git add -f`, and the official docs
+  mirror is the sort of thing that must not be pushed by accident.
 
 - `npm run git:check` runs in warn-only mode and cannot fail the build. Its
   verdict depends on the machine — whether a system Git is installed, whether
