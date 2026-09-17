@@ -2,7 +2,7 @@
 
 **English** · [中文](#中文说明)
 
-**Version 1.0.0** · requires Obsidian **1.8.7** or newer · desktop and mobile
+**Version 1.0.0** · requires Obsidian **1.13.0** or newer · desktop and mobile
 
 A long fenced code block can swallow a whole note. This plugin keeps code blocks compact in Reading View and gives the very long ones a real code minimap, so you can still see the shape of the code and jump around it without scrolling past hundreds of lines.
 
@@ -172,7 +172,7 @@ MIT — see [LICENSE](LICENSE).
 
 [English](#code-block-auto-collapse) · **中文**
 
-**版本 1.0.0** · 需要 Obsidian **1.8.7** 或更高 · 桌面端与移动端
+**版本 1.0.0** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
 
 一段长代码会把整篇笔记挤没。这个插件让代码块在阅读视图里保持紧凑，并为特别长的代码块配一个真正的代码缩略图 —— 你既能一眼看出代码的形状，也能直接跳转，不用滚过几百行样板代码。
 
