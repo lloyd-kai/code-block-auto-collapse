@@ -16,6 +16,12 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Shanghai
+    # 依赖升级是「集成」工作，不是「发布」工作，所以目标分支必须是 develop。
+    # 官方目录会从**默认分支**重新构建并与 Release 附件比对（Build verification），
+    # 而 main 必须始终精确等于已发布 tag 的源码 —— 把依赖 PR 直接合进 main，
+    # 等于在已发布的版本上改源码，构建产物一变验证就红。
+    # 不写这一项时 Dependabot 指向仓库默认分支（main），本仓库实测三个 PR 全部指向 main。
+    target-branch: develop
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -26,17 +32,31 @@ updates:
           - "eslint"
           - "eslint-*"
           - "@typescript-eslint/*"
-      types:
+      # 类型包与编译器**分开**成组：typescript 被下面 ignore 里的 typescript-eslint
+      # peer 上限卡着，合在一组会把 @types/node 一起拖住。
+      node-types:
         patterns:
           - "@types/*"
+      typescript:
+        patterns:
           - "typescript"
       build:
         patterns:
           - "esbuild"
           - "tslib"
+    ignore:
+      # typescript-eslint 8.x 的 peer 约束是 `typescript >=4.8.4 <6.1.0`，
+      # 而 eslint.config.mjs 开了 projectService（类型感知 lint）。装 TS 6.1+
+      # 会让 `npm run lint` 直接失败 —— 但同一提交上 `tsc --noEmit` 与 esbuild
+      # 都正常（CI 的 package 任务是绿的，红的只有 lint），别误判成编译器不兼容。
+      # 等 typescript-eslint 支持新版本后删掉这条。
+      - dependency-name: "typescript"
+        versions: [">=6.1.0"]
 
   - package-ecosystem: github-actions
     directory: "/"
+    # 同 npm：action 版本也属于集成工作，先合 develop，随下一个版本一起进 main。
+    target-branch: develop
     schedule:
       interval: weekly
       day: monday
