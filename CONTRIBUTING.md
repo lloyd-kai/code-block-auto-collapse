@@ -43,7 +43,7 @@ Naming rules:
   `feature/work` or `feature/stuff`.
 - When the change comes from an issue, append the number to a readable topic:
   `bugfix/12-fold-flicker`. The number is a suffix, never the whole name.
-- `<version>` is the version that branch will produce: `release/3.1.0`.
+- `<version>` is the version that branch will produce: `release/1.1.0`.
 
 `main` is the **default branch on GitHub**, not `develop`. This is deliberate:
 Obsidian resolves a plugin from the repository root, and `develop` carries the
@@ -241,7 +241,8 @@ npm run preflight   # lint → test → release → validate
 Individually: `npm run lint`, `npm test`, `npm run build`, `npm run release`,
 `npm run validate`.
 
-`npm run lint` currently reports two warnings. They are a deliberate trade-off,
-not an oversight — read
-[PLUGIN_DEVELOPMENT.md § 13.5](PLUGIN_DEVELOPMENT.md) before trying to "fix"
-them.
+`npm run lint` currently reports zero errors and zero warnings, and it should stay
+that way. If a new warning appears, fix it rather than silencing the rule —
+Obsidian's reviewers run the same rule set. The two warnings this repository used
+to carry, and why raising `minAppVersion` to 1.13.0 cleared them, are explained in
+[PLUGIN_DEVELOPMENT.md § 13.5](PLUGIN_DEVELOPMENT.md).

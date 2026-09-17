@@ -1,6 +1,6 @@
 # Code Block Auto Collapse：从源码到 Obsidian 发布
 
-本文以当前的 `1.0.0` 版本为例，说明插件的架构、涉及的 Obsidian API、与参考实现（JetBrains 插件 CodeGlance Pro）的对应关系，以及发布流程。文中的路径均相对于项目根目录。
+本文以当前的 `1.0.1` 版本为例，说明插件的架构、涉及的 Obsidian API、与参考实现（JetBrains 插件 CodeGlance Pro）的对应关系，以及发布流程。文中的路径均相对于项目根目录。
 
 ## 1. 插件做了什么
 
@@ -62,10 +62,16 @@ tools/smoke-test.mjs                   纯逻辑冒烟测试
 eslint.config.mjs                      官方社区插件审核用的 ESLint 配置
 .github/workflows/ci.yml               每次推送/PR 在 Linux + Windows 上跑 lint、测试、构建，并校验发布包
 .github/workflows/release.yml          打 tag 自动构建、生成产物溯源证明、建 draft Release
+.github/dependabot.yml                 每周提依赖与 action 版本的升级 PR
+.github/SECURITY.md                    安全问题的私下报告指引
+.github/ISSUE_TEMPLATE/                两种 issue 表单 + 关闭空白 issue 的配置
+.github/pull_request_template.md       PR 自查清单
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/      可直接复制到 vault 的发布目录
 code-block-auto-collapse-<version>.zip 发布压缩包（由 npm run release 生成）
 ```
+
+> 注意最后三行：`main.js`、`release/`、`*.zip` 都是**本地产物，不进仓库**（见 `.gitignore`）。官方要求 `main.js` 只作为 GitHub Release 的附件分发。
 
 构建与测试：
 
@@ -433,24 +439,27 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 README 与 Release 说明面向国际用户，用英文；本文档是内部开发说明，保持中文。
 
-**GitHub Release 说明**（tag `1.0.0`，标题写 `1.0.0`）
+**GitHub Release 说明**（tag `1.0.1`，标题写 `1.0.1`）
 
 ```markdown
-First public release. Requires Obsidian **1.13.0** or newer.
+Maintenance release. Requires Obsidian **1.13.0** or newer.
 
-Long code blocks in Reading View are folded into a short preview with an expand button,
+Same feature set as 1.0.0, plus the performance and correctness fixes that landed
+after it:
+
+- Scrolling a note with many code blocks no longer re-reads the full source of
+  every tracked block on every frame.
+- A code block that fills the entire viewport no longer rebuilds its source
+  string each frame while you scroll past it.
+- A settings change made just before reloading the plugin or quitting Obsidian is
+  no longer discarded.
+- A block whose source shrinks below the fold threshold now folds and unfolds
+  correctly again.
+- Right-clicking the minimap no longer jumps to the clicked position.
+
+Long code blocks in Reading view are folded into a short preview with an expand button,
 and every folded block gets a CodeGlance-style minimap: syntax-colored, clickable,
 draggable, and resizable.
-
-**Features**
-
-- Fold long code blocks in Reading View, keeping the first few lines with a fade-out.
-- Syntax-colored minimap with click, drag and keyboard navigation.
-- Drag the minimap edge to resize it. Fold threshold, visible lines, colors and
-  alignment are all configurable.
-- Every setting is findable from Obsidian's global settings search.
-- The interface follows your Obsidian language (English / 中文).
-- Works on desktop and mobile.
 
 See the README for the full feature list and settings reference.
 ```
@@ -460,14 +469,14 @@ See the README for the full feature list and settings reference.
 短描述 —— 直接与 `manifest.description` 保持一致最省事，它已经满足「≤250 字符、以句号结尾、无 emoji」的要求：
 
 ```text
-Collapse long code blocks in Reading View and navigate them with a syntax-colored code minimap.
+Collapse long code blocks in Reading view and navigate them with a syntax-colored code minimap.
 ```
 
 长描述：
 
 ```markdown
 A long fenced code block can swallow a whole note. This plugin folds code blocks in
-Reading View and draws a CodeGlance-style minimap beside the very long ones, so you can
+Reading view and draws a CodeGlance-style minimap beside the very long ones, so you can
 see the shape of the code and jump around it without scrolling past hundreds of lines.
 
 No accounts, no payment, no network requests, no telemetry, no ads, and no access to
@@ -504,242 +513,11 @@ files outside the vault. Fully open source (MIT).
 
 **由此得出的硬规则**：`tools/` 与 `src/` 里**转路径一律用 `node:url` 的 `fileURLToPath` / `pathToFileURL`**，不要手写 `pathname` 处理；这类"只在本地是对的"的代码正是平台矩阵要挡的东西。
 
-**工作流里的 action 版本**：`checkout@v7`、`setup-node@v7`、`upload-artifact@v7`。`upload-artifact` 必须 ≥ v6 —— v4 仍指向 Node.js 20，运行器会强制它跑在 Node 24 上并每次报一条弃用告警。
+**工作流里的 action 版本**：`checkout@v7`、`setup-node@v7`、`upload-artifact@v7`、`attest@v4`。`upload-artifact` 必须 ≥ v6 —— v4 仍指向 Node.js 20，运行器会强制它跑在 Node 24 上并每次报一条弃用告警。三个工作流里的同一个 action 必须 pin 到同一个大版本。
 
-## 14. 待提 issue 草稿
+**这些版本由 `.github/dependabot.yml` 维护**：每周一（Asia/Shanghai 09:00）各提一个 npm 依赖 PR 与一个 action 版本 PR，提交信息分别是 `chore(deps): …` 与 `ci(deps): …`。之所以把全部 action 合并进同一个 PR，就是因为上一条要求它们版本一致 —— 拆开提会出现「checkout 升了、setup-node 没升」的中间状态。Dependabot 的 PR 同样要过 CI 才能合。
 
-新仓库的 issue 列表是空的。下面这批可以直接粘进 GitHub —— 本环境没有 API token，无法代你创建。每条都基于当前代码的真实状态，**没有虚构 bug**；其中「支持 Live Preview」与「测量渲染开销」是真正的技术债，建议先提。
-
-用法：仓库页 → **Issues** → **New issue** → 选对应模板 → 标题和正文照抄 → 提交后按「标签」一栏打标。
-
-### 14.1 Support Live Preview
-
-- **标签**：`enhancement`
-- **为什么值得先提**：这是功能覆盖面最大的缺口，也是 issue 区最常见的期待。
-
-```text
-Title: Support Live Preview
-```
-
-```markdown
-Reading View works, but the plugin does nothing in Live Preview, which is where
-most people actually read and edit code.
-
-The plugin registers only a markdown post-processor
-(`registerMarkdownPostProcessor`), which Obsidian runs for Reading View. Live
-Preview renders code blocks through CodeMirror 6, so folding there needs a
-different mechanism — most likely a CodeMirror extension that decorates the first
-N lines of a code block.
-
-Two things worth deciding before writing code:
-
-- Should the minimap exist in Live Preview at all, or is collapsing enough?
-- How do we avoid fighting the editor's own selection and cursor behaviour?
-```
-
-### 14.2 Remember which code blocks the user expanded
-
-- **标签**：`enhancement`
-
-```text
-Title: Remember expanded code blocks within a session
-```
-
-```markdown
-Every time a note is re-rendered, all code blocks collapse again. If you expand a
-block to read it, switch notes, and come back, you have to expand it a second
-time.
-
-The plugin currently keeps no per-block state at all. A workable scope:
-
-- Key blocks by file path plus the code block's index within the file.
-- Keep the state in memory for the session only. Persisting it to `data.json`
-  would grow without bound and would go stale as notes are edited.
-- Clear the entry when the block's line count changes, since the index is no
-  longer trustworthy at that point.
-```
-
-### 14.4 Measure the rendering cost in notes with many code blocks
-
-- **标签**：`enhancement`
-- **背景**：绘制已经做了窗口化（窗口跟随视窗平移，超长块每帧绘制量恒定），但**单篇笔记内多个代码块**的合计开销从未测过。
-
-```text
-Title: Measure rendering cost in a note with many long code blocks
-```
-
-```markdown
-Painting is windowed per block, so the cost of one very long code block is
-bounded. What has never been measured is a note containing many long blocks at
-once — for example twenty 300-line blocks in a single file.
-
-Worth establishing before optimising anything:
-
-- A repeatable fixture: a generated note with a known number of blocks and lines.
-- Frame timings while scrolling the whole note, on a low-end machine and on
-  mobile.
-- Whether off-screen minimaps should skip painting entirely, and whether that can
-  be done without a visible pop when they scroll into view.
-
-Please post the numbers in this issue before proposing a change, so the fix can be
-judged against a baseline.
-```
-
-### 14.4 Add screenshots and a demo GIF to the README
-
-- **标签**：`documentation`, `good first issue`
-- **背景**：README 目前 0 张图。对这类「视觉收益」明显的插件来说，一张图比一段文字有效得多。
-
-```text
-Title: Add screenshots and a short demo GIF to the README
-```
-
-```markdown
-The README describes the minimap in prose but shows nothing. For a plugin whose
-whole value is visual, that is the single biggest gap in the documentation.
-
-Wanted:
-
-- One screenshot of a collapsed block in a light theme and one in a dark theme.
-- One screenshot of the minimap next to a long block, at a readable size.
-- A short GIF (under ~5 MB) showing click-to-jump and dragging the viewport.
-
-Put them near the top, above "What it does". Images go in a `docs/` or `assets/`
-directory; the README links to them with relative paths.
-```
-
-### 14.6 Document the CSS variables
-
-- **标签**：`documentation`, `good first issue`
-- **背景**：`styles.css` 里已有 8 个变量，但 README 和 `PLUGIN_DEVELOPMENT.md` 都没有列出，主题和 snippet 作者无从得知。
-
-```text
-Title: Document the CSS variables themes and snippets can target
-```
-
-```markdown
-The stylesheet exposes CSS variables that themes and snippets can override, but
-they are not documented anywhere. Anyone who wants to restyle the minimap has to
-read `styles.css`.
-
-The variables currently in use:
-
-- `--cbac-minimap-width`
-- `--cbac-canvas-height`
-- `--cbac-preview-height`
-- `--cbac-fade-height`
-- `--cbac-viewport-color`
-- `--cbac-viewport-color-strong`
-- `--cbac-viewport-border`
-- `--cbac-viewport-border-width`
-
-Add a "Styling" section to the README listing each one, what it controls, and
-whether it is set by the plugin at runtime (several of them are written by the
-script on every layout pass, so overriding them in a snippet may not stick).
-```
-
-### 14.6 Add a copy button to collapsed code blocks
-
-- **标签**：`enhancement`
-
-```text
-Title: Add a copy button to collapsed code blocks
-```
-
-```markdown
-A collapsed block is usually the one you want to copy — you folded it because you
-already know what is in it. Right now you have to expand it first, select the
-text, and copy.
-
-A copy button next to the expand toggle, using `navigator.clipboard.writeText()`,
-would remove those steps. `navigator.clipboard` is a web API, so this stays
-mobile-compatible and `isDesktopOnly` can remain `false`.
-
-Note that Obsidian already shows its own copy button on code blocks; check
-whether the two can coexist without crowding the corner.
-```
-
-### 14.7 Add a command to collapse or expand every code block in a note
-
-- **标签**：`enhancement`
-
-```text
-Title: Add a command to collapse or expand every code block in a note
-```
-
-```markdown
-The per-block toggle is the only control. When you want the whole note folded —
-or the whole note open so you can search it with the browser's own find — you
-have to click every block.
-
-Add two commands, "Collapse all code blocks" and "Expand all code blocks", so they
-can be bound to hotkeys and reached from the command palette.
-
-Remember that Obsidian's guidelines say a plugin must not ship a default hotkey,
-so these should be unbound on install.
-```
-
-## 15. 本环境的 git 陷阱（已定位，并加了守门脚本）
-
-**这不是仓库或代码的问题，是 WorkBuddy Bash 沙箱写入策略的漏洞。** 现象、实测证据、对策都记在这里，免得下次再靠「感觉」绕过。
-
-### 15.1 现象
-
-在这个环境里用默认的 `git`（PATH 上的 `/mingw64/bin/git`，也就是托管版 PortableGit 2.55.0.windows.3）操作**工作区内**的仓库时，git 会**静默地**写不进带斜杠的 ref：退出码 0、没有任何输出，但 `.git/refs/heads/feature/x` 根本没落盘。两个已经踩过的坑都由此而来：
-
-1. `git checkout -b feature/x` 打印 `Switched to a new branch 'feature/x'`，HEAD 也指过去了，但 ref 不存在 —— 分支是 unborn 的。紧接着 `git commit` 报 `does not have any commits yet`，改动全卡在暂存区，看起来像「提交成功但历史里没有」。
-2. `git merge` 在工作区脏时走 autostash，而 `git stash` **会先把工作区回退**、再写 stash 记录；记录写不进去时未提交的改动直接消失（实测还伴随 `.git` 被整个清空，当时已修好的 `tools/smoke-test.mjs` 就是这么丢的）。
-3. **切换分支会把整个目录从工作区删掉。** 实测两次：`main` / `develop` 的 `.github/` 文件集合不同 → 整个 `.github/` 消失；`bugfix` 分支多一个 `tools/git-guard.mjs` → 整个 `tools/` 消失，连两个分支里**完全一样**的那 4 个文件也一起没了。git 只应该删那个真正有差异的文件，多删的部分就是沙箱干的。表现是 `git status` 里一串 ` D`，`git checkout` 本身还会打印成功的 `Switched to branch ...`。
-
-### 15.2 实测矩阵（每个格子各 3 次，稳定复现）
-
-| git | 仓库位置 | `refs/heads/feature/x` | `refs/remotes/origin/main` | `refs/heads/flat` |
-| --- | --- | --- | --- | --- |
-| PortableGit 2.55（PATH 上的 `git`） | 工作区内 | **静默丢失** | **静默丢失** | 正常 |
-| Git for Windows 2.43（`/d/Git/cmd/git`） | 工作区内 | 正常 | 正常 | 正常 |
-| PortableGit 2.55 | `%TEMP%` 下 | 正常 | 正常 | 正常 |
-| Git for Windows 2.43 | `%TEMP%` 下 | 正常 | 正常 | 正常 |
-
-**两个条件同时成立才触发**：新版 git 的 MSYS 运行时创建目录走的那条系统调用被沙箱拦了，而沙箱对 `.git/refs/**` 的写入白名单只覆盖到 `.git/refs/<一层>/<文件>`，再深一层就被静默丢弃。于是：
-
-- **受影响**：`refs/heads/<a>/<b>`（GitFlow 的 `feature/*`、`bugfix/*`、`release/*`、`hotfix/*` 全中）、`refs/remotes/origin/*`（`git fetch` 之后跟踪引用永远显示 `[origin/*: gone]`）、`refs/tags/<a>/<b>`。
-- **不受影响**：`refs/heads/<单层名>`、`refs/stash`、`ORIG_HEAD`、`.git/objects/**`，以及工作区里的嵌套目录（`git checkout` 能正常重建 `.github/workflows/`）。
-
-已经逐一排除、确认无关的项：`core.fscache`、`core.protectNTFS`、`core.autocrlf`、`MSYS` / `MSYS_NO_PATHCONV` / `MSYS2_ARG_CONV_EXCL`、`.gitattributes`、OneDrive 同步、`safe-bin` 的 `rm` shim，以及「磁盘权限 / 目录不存在」这类猜测 —— bash 的 `mkdir -p .git/refs/heads/feature` 完全正常且能持久化，但 git 往这个**已经存在**的目录里写 ref 仍然失败。
-
-### 15.3 对策：`tools/git-guard.mjs`
-
-```bash
-npm run git:check                  # 诊断：逐个探测候选 git，报告哪个可用
-npm run git -- status --short      # 用可用的 git 执行（自动挑选 + 执行后校验）
-```
-
-- **诊断**（`--diagnose`）：只创建再删除一个探针 ref（`refs/heads/cbac-env-probe/x`），不碰工作区、不动 HEAD，并且一定会把探针删掉。
-- **执行**：按「系统安装的 Git for Windows → PATH 上的 git」顺序，挑第一个能通过探测的；执行后校验这条命令「本应创建」的 ref 是否真的存在、HEAD 是否不是 unborn，并在 `checkout` / `switch` / `merge` / `pull` / `rebase` 之后检查工作区有没有「已跟踪文件被删」。发现不一致就退出码 1 并明确报错 —— **把静默失败变成响亮的失败**，这是这个脚本存在的全部理由。
-- 只读子命令（`status` `log` `diff` `rev-parse` …）不需要探测，直接执行，避免在没有可用 git 时把只读操作也一并堵死。
-- 已作为第一环进入 `npm run preflight`。
-
-### 15.4 恢复手法
-
-被删的文件只要**在索引里还是干净的**（`git status` 显示 ` D` 而不是 `D `），一条命令就能全部拿回来，不会丢内容：
-
-```bash
-git checkout -- .github        # 或 tools、或整个 .
-git status --short             # 空输出就是恢复干净了
-```
-
-已经提交过的东西不受影响：它们在 object 库里，最多是工作区少了几份文件。真正会丢内容的只有「未提交的改动 + `git stash` / autostash」那条路径。
-
-### 15.5 硬规则
-
-1. **本仓库的 git 操作一律用 `D:/Git/cmd/git`（2.43），不要用 PATH 上的 `git`。** 写脚本时 `G=/d/Git/cmd/git` 再 `$G ...`。
-2. **工作区脏的时候绝对不要 `git merge`。** 先提交干净 —— autostash 正是那条会把改动吃掉的路径。
-3. 需要建 / 删 / 改 ref 时优先走 `npm run git --`，让执行后校验兜底。
-4. **切换分支之后立刻看一眼 `git status --short`**：出现 ` D` 就是整个目录被删了，按 15.4 恢复。两个分支的同一个目录里只要文件集合不同，就有风险。
-5. 沙箱拒绝写入时命令可能被 SIGTERM 打断，所以「先破坏再重建」的操作（`git stash`、`rm -rf`）不要和别的步骤挤在同一条命令里。
-6. 这是沙箱策略的缺陷，不是 git 的 bug：同一个二进制在 `%TEMP%` 下完全正常。要在别处复现，照 15.2 的矩阵做即可。
-
-## 16. 参考资料
+## 14. 参考资料
 
 - [Obsidian Plugin Developer Docs](https://docs.obsidian.md/Plugins)
 - [Build a plugin](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
