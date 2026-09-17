@@ -9,66 +9,34 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-17
+
 ### Added
 
-- `.github/workflows/release.yml`: pushing a tag now builds the plugin, runs the
-  official ESLint rule set and the smoke tests, generates a build provenance
-  attestation, and opens a draft GitHub release with `main.js`, `manifest.json`,
-  and `styles.css` attached. The workflow fails outright if the tag does not
-  match `manifest.version`, since Obsidian locates a release by exact tag match.
-- `.github/workflows/ci.yml`: every push and pull request against `main` or
-  `develop` runs lint, tests, and the build on **both** Ubuntu and Windows, plus
-  a packaging job that runs the submission validator. The release workflow runs
-  on Ubuntu while development happens on Windows, so a platform-specific bug
-  could previously pass every local check and only surface at tag time.
-- `tools/git-guard.mjs`, exposed as `npm run git:check` and `npm run git --`.
-  It diagnoses and works around a silent ref-loss defect in this environment's
-  Bash sandbox: the bundled PortableGit 2.55 reports success while writing
-  nothing for refs nested deeper than `.git/refs/<name>/<file>` inside the
-  workspace. `feature/*` branches silently became unborn and `git merge` could
-  discard uncommitted work through autostash. The same defect also makes a
-  branch switch delete a whole directory instead of the one file that actually
-  differs, so the guard additionally checks for tracked files reported as
-  deleted after `checkout`, `switch`, `merge`, `pull`, `rebase`, `cherry-pick`,
-  `revert`, and `reset`. The guard picks a working git, verifies the result of
-  every ref-mutating command, and fails loudly when it is wrong. It is now the
-  first step of `npm run preflight`; the reproduction matrix is in
-  `PLUGIN_DEVELOPMENT.md` section 15.
+- `tools/git-guard.mjs`, exposed as `npm run git --`, `npm run git:check`, and
+  `npm run git:check:strict`. It diagnoses and works around a silent ref-loss
+  defect in this development environment's shell sandbox: the bundled
+  PortableGit reports success while writing nothing for refs nested deeper than
+  `.git/refs/<name>/<file>` inside the workspace. `feature/*` branches silently
+  became unborn, and `git merge` could discard uncommitted work through
+  autostash. The same defect also makes a branch switch delete a whole directory
+  instead of the one file that actually differs, so the guard additionally
+  checks for tracked files reported as deleted after `checkout`, `switch`,
+  `merge`, `pull`, `rebase`, `cherry-pick`, `revert`, and `reset`. The guard
+  picks a working Git, verifies the result of every ref-mutating command, and
+  fails loudly when the result is wrong.
 
 ### Changed
 
-- The settings tab now uses the declarative settings API
-  (`getSettingDefinitions()`), which requires Obsidian 1.13.0 — `minAppVersion`
-  is raised accordingly. Settings render through the framework instead of a
-  hand-written `display()`, and every setting is now indexed by Obsidian's
-  global settings search. `setControlValue()` is overridden so that a change
-  still runs through `updateSettings()`, keeping the existing
-  rebuild/content/layout refresh tiers.
-- `tools/smoke-test.mjs` resolves its source paths with `fileURLToPath()` /
-  `pathToFileURL()`. The previous hand-rolled `pathname` conversion produced a
-  path that esbuild accepted on Windows but not on Linux, which broke the
-  release workflow at the "Lint and test" step while passing locally.
-- `actions/upload-artifact` in CI moved to v7 so it runs on Node.js 24, matching
-  the other pinned actions.
-- Submission documentation rewritten for the community directory's web form.
-  The `obsidian-releases` pull request process — appending to
-  `community-plugins.json` and waiting for a `Ready for review` label — has been
-  retired and is no longer mentioned in the official developer docs.
-- `npm run validate` now also asserts the rules the directory scanner applies:
-  `main.js` must not be tracked by Git, the README must carry a disclosures
-  section, `package.json` must expose a build script the scanner can find, and
-  `id` must not end with `plugin`.
-- `npm run git:check` now runs in warn-only mode and cannot fail the build. Its
-  verdict depends on the machine — whether a system Git is installed, whether the
-  checkout is a linked worktree, whether the directory is managed by a sync
+- `npm run git:check` runs in warn-only mode and cannot fail the build. Its
+  verdict depends on the machine — whether a system Git is installed, whether
+  the checkout is a linked worktree, whether the directory is managed by a sync
   client — so it has no business gating `npm run preflight`. Use the new
-  `npm run git:check:strict` when you want it to block.
-
-### Removed
-
-- `settings-tab.ts` no longer imports `Setting` or builds rows by hand; the
-  imperative `display()` override is gone, which clears the two ESLint warnings
-  the official rule set reported for it.
+  `npm run git:check:strict` when you want it to block. `npm run git:check` is
+  now the first step of `npm run preflight`.
+- `.gitignore` covers the local agent orientation guide and the usual editor and
+  operating-system noise (`.vscode/`, `.idea/`, `*.iml`, `.DS_Store`,
+  `Thumbs.db`, `desktop.ini`, `*.log`, `.eslintcache`), plus a local test vault.
 
 ### Fixed
 
@@ -80,6 +48,13 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 - Scrolling a note with many code blocks re-read `textContent` for every tracked
   block on every frame, allocating a fresh copy of the full source each time.
   Blocks far outside the viewport are now skipped before that read.
+- A code block that fills the viewport still rebuilt its entire source string
+  every frame. The previous fix only skipped blocks that were fully off screen,
+  which does nothing for one long block that is itself the whole screen — the
+  worst case, since a 20,000-line block meant re-allocating roughly 0.6 MB per
+  frame while scrolling. The read is now gated to once every 400 ms. Reading view
+  content is effectively static, so the delay is invisible, and minimap geometry
+  still updates every frame.
 - `CodeMinimap.update()` resolved the scroll container — an ancestor walk that
   reads computed styles and `scrollHeight` at every level — before checking
   whether the block was on screen. The cheap viewport test now runs first, so
@@ -87,20 +62,13 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 - A block longer than "Maximum lines to render" still rebuilt its per-row
   representative array on every geometry change, even though nothing is drawn
   for it.
+- A block whose source shrank below "Minimum lines to collapse" stayed clamped.
+  The collapse flag was recomputed but never re-applied, so the wrapper kept its
+  `is-collapsed` class while the toggle advertised "Collapse".
 - With "Jump on" set to `Pointer up`, right-clicking the minimap jumped to the
   clicked position. Only a real left-button release navigates now.
 - The hover preview kept a reference to the block's full source after it was
   destroyed.
-- A code block that fills the viewport still rebuilt its entire source string
-  every frame. The previous fix only skipped blocks that were fully off screen,
-  which does nothing for one long block that is itself the whole screen — the
-  worst case, since a 20,000-line block meant re-allocating roughly 0.6 MB per
-  frame while scrolling. The read is now gated to once every 400 ms. Reading View
-  content is effectively static, so the delay is invisible, and minimap geometry
-  still updates every frame.
-- A block whose source shrank below "Minimum lines to collapse" stayed clamped.
-  The collapse flag was recomputed but never re-applied, so the wrapper kept its
-  `is-collapsed` class while the toggle advertised "Collapse".
 - `tools/git-guard.mjs` reported false failures for correct commands. `git -c
   key=value <command>` was read as a ref name, so the guard claimed
   `merge.autostash=false` had been silently dropped; `git branch --list
@@ -123,7 +91,7 @@ First public release.
 
 ### Added
 
-- Automatic collapsing of code blocks with four or more lines in Reading View,
+- Automatic collapsing of code blocks with four or more lines in Reading view,
   with a hover-revealed expand toggle and a bottom fade.
 - A code minimap for blocks longer than 100 lines, drawn on a canvas with the
   theme's syntax colors: click to jump, drag the viewport rectangle, hover to
@@ -140,6 +108,48 @@ First public release.
   Rendering, with a restore-to-defaults action.
 - Interface text that follows Obsidian's own language: English by default,
   Chinese automatically.
+- `.github/workflows/release.yml`: pushing a tag builds the plugin, runs the
+  official ESLint rule set and the smoke tests, generates a build provenance
+  attestation, and opens a draft GitHub release with `main.js`, `manifest.json`,
+  and `styles.css` attached. The workflow fails outright if the tag does not
+  match `manifest.version`, since Obsidian locates a release by exact tag match.
+- `.github/workflows/ci.yml`: every push and pull request against `main` or
+  `develop` runs lint, tests, and the build on **both** Ubuntu and Windows, plus
+  a packaging job that runs the submission validator. The release workflow runs
+  on Ubuntu while development happens on Windows, so a platform-specific bug
+  could previously pass every local check and only surface at tag time.
+
+### Changed
+
+- The settings tab uses the declarative settings API
+  (`getSettingDefinitions()`), which requires Obsidian 1.13.0 — `minAppVersion`
+  is raised from `1.8.7` accordingly. Settings render through the framework
+  instead of a hand-written `display()`, and every setting is now indexed by
+  Obsidian's global settings search. `setControlValue()` is overridden so that a
+  change still runs through `updateSettings()`, keeping the existing
+  rebuild/content/layout refresh tiers.
+- `tools/smoke-test.mjs` resolves its source paths with `fileURLToPath()` /
+  `pathToFileURL()`. The previous hand-rolled `pathname` conversion produced a
+  path that esbuild accepted on Windows but not on Linux, which broke the
+  release workflow at the "Lint and test" step while passing locally.
+- `actions/upload-artifact` in CI moved to v7 so it runs on Node.js 24, matching
+  the other pinned actions.
+- Submission documentation rewritten for the community directory's web form.
+  The `obsidian-releases` pull request process — appending to
+  `community-plugins.json` and waiting for a `Ready for review` label — has been
+  retired and is no longer mentioned in the official developer docs.
+- `npm run validate` now also asserts the rules the directory scanner applies:
+  `main.js` must not be tracked by Git, the README must carry a disclosures
+  section, `package.json` must expose a build script the scanner can find, and
+  `id` must not end with `plugin`.
+- The plugin no longer uses the `lh` unit or `color-mix()`, so it works on older
+  Chromium builds.
+
+### Removed
+
+- `settings-tab.ts` no longer imports `Setting` or builds rows by hand; the
+  imperative `display()` override is gone, which clears the two ESLint warnings
+  the official rule set reported for it.
 
 ### Fixed
 
@@ -163,11 +173,6 @@ Bugs present before this release, all of them in the minimap and folding path:
 - Every slider input rebuilt the entire document. Settings changes are now
   classified as `rebuild`, `content`, or `layout`, with a debounce.
 
-### Changed
-
-- The plugin no longer uses the `lh` unit or `color-mix()`, so it works on older
-  Chromium builds.
-- `minAppVersion` is `1.8.7`, the version that introduced `getLanguage()`.
-
-[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/1.0.0
