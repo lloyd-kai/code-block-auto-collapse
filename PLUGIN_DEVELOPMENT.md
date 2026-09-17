@@ -398,6 +398,8 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 - [ ] 仓库公开可访问，且 `README.md` 说明了插件用途与用法。
 - [ ] 无 `YOUR_GITHUB_USERNAME` 占位符残留。
 - [ ] `LICENSE` 明确写出许可证（MIT）与版权声明。
+- [ ] GitHub 把许可证识别为 **MIT**（`license.spdx_id`），而不是 `Custom license` —— 扫描器取的是 GitHub 的判断，不是文件内容（见 13.4.2）。
+- [ ] 仓库的 GitHub **description** 描述的是这个插件。目录不使用该字段，但用户从条目页点进仓库就会看到，别留着占位文字。
 
 **manifest.json**
 
@@ -419,7 +421,8 @@ canvas 只绘制 `[windowStart, windowStart + canvasHeight]` 范围内的绘制�
 
 **代码与行为**
 
-- [ ] `npm run lint` 零 error（官方规则集），`npm test` 全过，`npm run build` 通过。
+- [ ] `npm run lint` 零 error（官方规则集，也是官方承认的本地等价检查），`npm test` 全过，`npm run build` 通过。
+- [ ] `package.json` 的 `build` 是**生产构建**命令 —— 扫描器按 `build` → `build:plugin` → `compile` 取第一个存在的，用它重建（见 13.4.2）。
 - [ ] 所有事件监听都可清理（`registerDomEvent` / `registerEvent` / `register`），组件内部拖拽用 Pointer Capture 挂在自身容器上。
 - [ ] 不在 `onunload` 里 detach leaf。
 - [ ] 不用全局 `app` / `window.app`，一律 `this.app`。
@@ -468,6 +471,34 @@ node -e "console.log(Buffer.from(process.argv[1],'base64').toString('utf8'))" '<
 证书记录的构建来源：workflow `release.yml@refs/tags/1.0.1`，commit `2a7388e`（= `main` = tag `1.0.1`），run `35169880016`。
 
 > 这条检查以前只是「本地笔记里写着一致」—— 那种说法没有可核验的来源，等于没验证。attestation 把它变成了可复现的证明。
+
+### 13.4.2 扫描器怎么读你的仓库
+
+自动审核会重新构建并扫描源码。有三条机制直接决定它看到什么，不知道就会踩坑：
+
+**构建脚本的发现顺序**：扫描器按 `build` → `build:plugin` → `compile` 找**第一个存在的**脚本，并用它构建。所以 `build` 必须是生产构建命令（本项目是 `tsc --noEmit && esbuild … --minify`），不能是 watch 或非压缩的开发构建 —— 否则它拿到的产物与 Release 附件必然对不上，报成 Build verification 失败。`npm run validate` 会断言存在扫描器认得的脚本。
+
+**忽略清单**：扫描器按固定名单跳过文件，**名字必须完全一致**才会被忽略：
+
+```
+node_modules, dist, build, pkg, test-vault, .pnpm-store, .obsidian,
+esbuild.config.mjs, version-bump.mjs, automation,
+*.test.*, *.tests.*, *.spec.*, *.specs.*, test, tests, __tests__, testUtils, e2e-tests,
+mocks, __mocks__,
+*.cjs, *.mjs, *.cts, *.mts,
+vite, scripts, docs,
+i18n, i18next, locale, locales, translations, l10n
+```
+
+注意 `*.mjs` 在名单里 —— 所以 `tools/` 下的守门、打包、校验脚本都不进扫描范围（这是好事，它们是开发工具）。反过来说，**不在名单里的目录会被扫**，本地开发残留必须确认已被 `.gitignore` 排除。
+
+**许可证**：扫描器不读 `LICENSE` 文件本身，而是取 **GitHub 报告的许可证类型**。GitHub 报成 `Custom license` 就会给警告，即使文件内容正确（通常是格式被改动导致匹配失败）。核对方式：
+
+```
+https://api.github.com/repos/<owner>/<repo>     # 看 license.spdx_id
+```
+
+本仓库报告 `spdx_id: "MIT"`，不触发该警告。
 
 ### 13.5 设置页为什么用声明式 API
 
