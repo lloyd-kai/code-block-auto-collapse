@@ -16,9 +16,27 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   attestation, and opens a draft GitHub release with `main.js`, `manifest.json`,
   and `styles.css` attached. The workflow fails outright if the tag does not
   match `manifest.version`, since Obsidian locates a release by exact tag match.
+- `.github/workflows/ci.yml`: every push and pull request against `main` or
+  `develop` runs lint, tests, and the build on **both** Ubuntu and Windows, plus
+  a packaging job that runs the submission validator. The release workflow runs
+  on Ubuntu while development happens on Windows, so a platform-specific bug
+  could previously pass every local check and only surface at tag time.
 
 ### Changed
 
+- The settings tab now uses the declarative settings API
+  (`getSettingDefinitions()`), which requires Obsidian 1.13.0 — `minAppVersion`
+  is raised accordingly. Settings render through the framework instead of a
+  hand-written `display()`, and every setting is now indexed by Obsidian's
+  global settings search. `setControlValue()` is overridden so that a change
+  still runs through `updateSettings()`, keeping the existing
+  rebuild/content/layout refresh tiers.
+- `tools/smoke-test.mjs` resolves its source paths with `fileURLToPath()` /
+  `pathToFileURL()`. The previous hand-rolled `pathname` conversion produced a
+  path that esbuild accepted on Windows but not on Linux, which broke the
+  release workflow at the "Lint and test" step while passing locally.
+- `actions/upload-artifact` in CI moved to v7 so it runs on Node.js 24, matching
+  the other pinned actions.
 - Submission documentation rewritten for the community directory's web form.
   The `obsidian-releases` pull request process — appending to
   `community-plugins.json` and waiting for a `Ready for review` label — has been
@@ -27,6 +45,12 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `main.js` must not be tracked by Git, the README must carry a disclosures
   section, `package.json` must expose a build script the scanner can find, and
   `id` must not end with `plugin`.
+
+### Removed
+
+- `settings-tab.ts` no longer imports `Setting` or builds rows by hand; the
+  imperative `display()` override is gone, which clears the two ESLint warnings
+  the official rule set reported for it.
 
 ## [1.0.0] - 2026-09-16
 
