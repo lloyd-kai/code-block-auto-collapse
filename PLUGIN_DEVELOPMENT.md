@@ -689,6 +689,7 @@ so these should be unbound on install.
 
 1. `git checkout -b feature/x` 打印 `Switched to a new branch 'feature/x'`，HEAD 也指过去了，但 ref 不存在 —— 分支是 unborn 的。紧接着 `git commit` 报 `does not have any commits yet`，改动全卡在暂存区，看起来像「提交成功但历史里没有」。
 2. `git merge` 在工作区脏时走 autostash，而 `git stash` **会先把工作区回退**、再写 stash 记录；记录写不进去时未提交的改动直接消失（实测还伴随 `.git` 被整个清空，当时已修好的 `tools/smoke-test.mjs` 就是这么丢的）。
+3. **切换分支会把整个目录从工作区删掉。** 实测两次：`main` / `develop` 的 `.github/` 文件集合不同 → 整个 `.github/` 消失；`bugfix` 分支多一个 `tools/git-guard.mjs` → 整个 `tools/` 消失，连两个分支里**完全一样**的那 4 个文件也一起没了。git 只应该删那个真正有差异的文件，多删的部分就是沙箱干的。表现是 `git status` 里一串 ` D`，`git checkout` 本身还会打印成功的 `Switched to branch ...`。
 
 ### 15.2 实测矩阵（每个格子各 3 次，稳定复现）
 
@@ -714,17 +715,29 @@ npm run git -- status --short      # 用可用的 git 执行（自动挑选 + �
 ```
 
 - **诊断**（`--diagnose`）：只创建再删除一个探针 ref（`refs/heads/cbac-env-probe/x`），不碰工作区、不动 HEAD，并且一定会把探针删掉。
-- **执行**：按「系统安装的 Git for Windows → PATH 上的 git」顺序，挑第一个能通过探测的；执行后校验这条命令「本应创建」的 ref 是否真的存在、HEAD 是否不是 unborn。发现不一致就退出码 1 并明确报错 —— **把静默失败变成响亮的失败**，这是这个脚本存在的全部理由。
+- **执行**：按「系统安装的 Git for Windows → PATH 上的 git」顺序，挑第一个能通过探测的；执行后校验这条命令「本应创建」的 ref 是否真的存在、HEAD 是否不是 unborn，并在 `checkout` / `switch` / `merge` / `pull` / `rebase` 之后检查工作区有没有「已跟踪文件被删」。发现不一致就退出码 1 并明确报错 —— **把静默失败变成响亮的失败**，这是这个脚本存在的全部理由。
 - 只读子命令（`status` `log` `diff` `rev-parse` …）不需要探测，直接执行，避免在没有可用 git 时把只读操作也一并堵死。
 - 已作为第一环进入 `npm run preflight`。
 
-### 15.4 硬规则
+### 15.4 恢复手法
+
+被删的文件只要**在索引里还是干净的**（`git status` 显示 ` D` 而不是 `D `），一条命令就能全部拿回来，不会丢内容：
+
+```bash
+git checkout -- .github        # 或 tools、或整个 .
+git status --short             # 空输出就是恢复干净了
+```
+
+已经提交过的东西不受影响：它们在 object 库里，最多是工作区少了几份文件。真正会丢内容的只有「未提交的改动 + `git stash` / autostash」那条路径。
+
+### 15.5 硬规则
 
 1. **本仓库的 git 操作一律用 `D:/Git/cmd/git`（2.43），不要用 PATH 上的 `git`。** 写脚本时 `G=/d/Git/cmd/git` 再 `$G ...`。
 2. **工作区脏的时候绝对不要 `git merge`。** 先提交干净 —— autostash 正是那条会把改动吃掉的路径。
 3. 需要建 / 删 / 改 ref 时优先走 `npm run git --`，让执行后校验兜底。
-4. 沙箱拒绝写入时命令可能被 SIGTERM 打断，所以「先破坏再重建」的操作（`git stash`、`rm -rf`）不要和别的步骤挤在同一条命令里。
-5. 这是沙箱策略的缺陷，不是 git 的 bug：同一个二进制在 `%TEMP%` 下完全正常。要在别处复现，照 15.2 的矩阵做即可。
+4. **切换分支之后立刻看一眼 `git status --short`**：出现 ` D` 就是整个目录被删了，按 15.4 恢复。两个分支的同一个目录里只要文件集合不同，就有风险。
+5. 沙箱拒绝写入时命令可能被 SIGTERM 打断，所以「先破坏再重建」的操作（`git stash`、`rm -rf`）不要和别的步骤挤在同一条命令里。
+6. 这是沙箱策略的缺陷，不是 git 的 bug：同一个二进制在 `%TEMP%` 下完全正常。要在别处复现，照 15.2 的矩阵做即可。
 
 ## 16. 参考资料
 

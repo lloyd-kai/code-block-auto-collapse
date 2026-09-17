@@ -8,19 +8,24 @@
 // 就完全正常。两个 git 的差别在 MSYS 运行时创建目录用的系统调用，沙箱只拦住了
 // 新版那个 —— 所以这是环境策略的漏洞，不是仓库或代码的问题。
 //
-// 两个已经踩过的坑都由它引起：
+// 三个已经踩过的坑都由它引起：
 //   1. `git checkout -b feature/x` 打印 "Switched to a new branch"，但 ref 没落盘，
 //      HEAD 指向 unborn 分支；接着 `git commit` 报 "does not have any commits yet"，
 //      改动全卡在暂存区，看起来像「提交成功但历史里没有」。
 //   2. `git merge` 在工作区脏时走 autostash，而 `git stash` 会**先把工作区回退**，
 //      再写 stash 记录；记录写不进去时，未提交的改动直接消失（实测还伴随 .git 被清空）。
+//   3. 切换分支时 git 会把**整个目录**从工作区删掉，而不是只删那个真正有差异的文件。
+//      实测两次：main / develop 的 .github/ 文件集合不同 → 整个 .github/ 消失；
+//      bugfix 分支多一个 tools/git-guard.mjs → 整个 tools/ 消失，连两个分支里完全
+//      一样的文件也一起没了。`git status` 里是一串 ` D`，用 `git checkout -- <目录>`
+//      就能恢复。所以只要工作区出现「已跟踪文件被删」，就值得立刻停下来查。
 //
 // 受影响范围（工作区内 + 托管 git）：refs/heads/<a>/<b>、refs/remotes/origin/*、
 // refs/tags/<a>/<b>。不受影响：refs/heads/<单层名>、refs/stash、ORIG_HEAD。
 //
 // 本脚本做两件事：
 //   node tools/git-guard.mjs --diagnose        逐个探测候选 git，报告当前目录下哪个可用
-//   node tools/git-guard.mjs <git 参数...>      用可用的 git 执行，并在执行后校验 ref 真的落盘
+//   node tools/git-guard.mjs <git 参数...>      用可用的 git 执行，并在执行后校验结果
 //
 // 探测只动 ref，不碰工作区，且一定会把探针 ref 删掉。
 import { spawnSync } from "node:child_process";
@@ -209,6 +214,40 @@ function currentHead(git) {
 	return result.status === 0 ? (result.stdout ?? "").trim() : "";
 }
 
+/**
+ * 会重写工作区的子命令。切换分支后出现「已跟踪文件被删」一定是陷阱而不是意图：
+ * 分支切换会同时更新 HEAD 和索引，正常结果在 status 里是空的。
+ */
+const WORKTREE_COMMANDS = new Set([
+	"checkout", "switch", "merge", "pull", "rebase", "cherry-pick", "revert", "reset",
+]);
+
+function touchesWorktree(args) {
+	for (const arg of args) {
+		if (arg.startsWith("-")) continue;
+		return WORKTREE_COMMANDS.has(arg);
+	}
+	return false;
+}
+
+/** 工作区里有没有「已跟踪文件被删」。有就说明沙箱把整个目录删掉了。 */
+function verifyWorktree(git) {
+	const result = run(git, ["status", "--porcelain"]);
+	if (result.status !== 0) return [];
+	const deleted = (result.stdout ?? "")
+		.split("\n")
+		.filter((line) => /^ D /.test(line))
+		.map((line) => line.slice(3).trim());
+	if (deleted.length === 0) return [];
+
+	// 恢复要按目录来 —— 被删的往往是整个目录，而不是这几个文件
+	const dirs = [...new Set(deleted.map((path) => (path.includes("/") ? path.split("/")[0] : path)))];
+	return [
+		`工作区里这些已跟踪文件被删掉了：${deleted.join("、")}`,
+		`沙箱在切换分支时会把整个目录删掉，用 \`git checkout -- ${dirs.join(" ")}\` 恢复`,
+	];
+}
+
 /** 挑第一个「能用」的 git；requireProbe 为真时必须通过斜杠 ref 探测。 */
 function pickGit(requireProbe) {
 	for (const candidate of CANDIDATES) {
@@ -246,12 +285,15 @@ function main() {
 
 	// 只有「git 自己说成功」才需要复核 —— 退出码非 0 时错误信息已经打出来了，
 	// 那不是静默失败，不该再报一次沙箱的账。
-	const problems = readOnly || result.status !== 0 ? [] : verifyAfter(git, args, beforeHead);
+	const problems =
+		readOnly || result.status !== 0
+			? []
+			: [...verifyAfter(git, args, beforeHead), ...(touchesWorktree(args) ? verifyWorktree(git) : [])];
 	if (problems.length > 0) {
 		console.error("");
 		console.error("⚠️  git 命令返回了成功，但结果不对：");
 		for (const problem of problems) console.error(`   - ${problem}`);
-		console.error("   这是沙箱静默丢弃 .git/refs 写入的典型表现，请勿继续提交或合并。");
+		console.error("   这是沙箱静默丢弃写入的典型表现，请勿继续提交或合并。");
 		console.error(`   换用：${git} 之外再试 \`npm run git:check\`；必要时在无沙箱环境下重跑。`);
 		process.exitCode = 1;
 		return;
