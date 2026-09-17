@@ -436,7 +436,7 @@ README 与 Release 说明面向国际用户，用英文；本文档是内部开�
 **GitHub Release 说明**（tag `1.0.0`，标题写 `1.0.0`）
 
 ```markdown
-First public release.
+First public release. Requires Obsidian **1.13.0** or newer.
 
 Long code blocks in Reading View are folded into a short preview with an expand button,
 and every folded block gets a CodeGlance-style minimap: syntax-colored, clickable,
@@ -448,6 +448,7 @@ draggable, and resizable.
 - Syntax-colored minimap with click, drag and keyboard navigation.
 - Drag the minimap edge to resize it. Fold threshold, visible lines, colors and
   alignment are all configurable.
+- Every setting is findable from Obsidian's global settings search.
 - The interface follows your Obsidian language (English / 中文).
 - Works on desktop and mobile.
 
