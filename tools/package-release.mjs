@@ -6,10 +6,20 @@
 //
 // 运行：npm run release（先 build，再跑本脚本）
 // ZIP 条目路径用正斜杠（符合 APPNOTE 规范），层级为 <pluginId>/<file>。
-import { crc32, deflateRawSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// crc32 是 Node 20.15 / 22.2 才加进 node:zlib 的导出。静态 import 在旧版 Node 上
+// 会在模块解析期直接抛 SyntaxError（"does not provide an export named 'crc32'"），
+// 看不出是版本问题；动态 import 只会得到 undefined，能给出可读的提示。
+// 这是发版路径，报错必须直接告诉人该做什么。
+const { crc32, deflateRawSync } = await import("node:zlib");
+if (typeof crc32 !== "function" || typeof deflateRawSync !== "function") {
+	console.error(`当前 Node ${process.version} 的 node:zlib 里没有 crc32 / deflateRawSync。`);
+	console.error("打包 ZIP 需要 Node 20.15 或 22.2 及以上，升级 Node 后重跑 npm run release。");
+	process.exit(1);
+}
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
