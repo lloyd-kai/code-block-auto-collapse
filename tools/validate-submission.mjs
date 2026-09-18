@@ -278,6 +278,7 @@ const localOnly = [
 	["_ref", "官方文档镜像与本地参考资料"],
 	["release", "由 npm run release 生成"],
 	["AGENTS.md", "给本地 AI 助手的工作交接说明"],
+	["HANDOVER.md", "维护者交接说明，面向自己，不进仓库"],
 	["PLUGIN_SUBMISSION_ZH.md", "官方文档的中文整理稿，版权属 Obsidian"],
 	[".workbuddy-ai", "本地助手的工作记忆"],
 ];
