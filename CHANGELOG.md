@@ -96,9 +96,8 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   privately, so a dead link there is the worst place to have one. `npm run
   validate` now checks that every relative link and image in every tracked
   Markdown file resolves. That check earns its place beyond this bug: the
-  directory listing rewrites the README's relative links to resolve against the
-  repository, so a typo becomes a dead link on a public page rather than a local
-  annoyance.
+  directory listing renders the repository's README, so a typo becomes a dead
+  link on a public page rather than a local annoyance.
 
 ## [1.0.1] - 2026-09-17
 
