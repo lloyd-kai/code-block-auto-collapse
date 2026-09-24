@@ -78,7 +78,7 @@ the released state on the default branch.
 | `fix` | A bug fix | PATCH |
 | `perf` | A change that only improves speed or memory | PATCH |
 | `refactor` | Behaviour-preserving restructure | — |
-| `docs` | README, comments, `PLUGIN_DEVELOPMENT.md` | — |
+| `docs` | README, CHANGELOG, comments | — |
 | `style` | Formatting or CSS with no logic change | — |
 | `test` | `tools/smoke-test.mjs` | — |
 | `build` | esbuild, tsconfig, npm scripts | — |
@@ -146,8 +146,8 @@ Which number to bump:
 | A bug fix, a performance fix, or a wording fix | PATCH |
 
 `minAppVersion` is bumped only when the code actually starts using a newer
-Obsidian API. It is a real minimum, not a safety margin — see
-[PLUGIN_DEVELOPMENT.md § 13.2](PLUGIN_DEVELOPMENT.md).
+Obsidian API. It is a real minimum, not a safety margin — the 1.13.0 bump and the
+two lint warnings it cleared are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 A version number lives in five places, and all five must agree:
 
@@ -238,8 +238,9 @@ carry a disclosures section, `package.json` must expose a build script the
 scanner can find).
 
 The full walkthrough — scanner result groups, listing metadata, screenshot
-specs, private source repositories — is in
-[PLUGIN_DEVELOPMENT.md § 13](PLUGIN_DEVELOPMENT.md).
+specs, private source repositories — is in the official
+[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)
+guide.
 
 ## Local checks
 
@@ -253,5 +254,5 @@ Individually: `npm run lint`, `npm test`, `npm run build`, `npm run release`,
 `npm run lint` currently reports zero errors and zero warnings, and it should stay
 that way. If a new warning appears, fix it rather than silencing the rule —
 Obsidian's reviewers run the same rule set. The two warnings this repository used
-to carry, and why raising `minAppVersion` to 1.13.0 cleared them, are explained in
-[PLUGIN_DEVELOPMENT.md § 13.5](PLUGIN_DEVELOPMENT.md).
+to carry, and why raising `minAppVersion` to 1.13.0 cleared them, are recorded in
+[CHANGELOG.md](CHANGELOG.md).

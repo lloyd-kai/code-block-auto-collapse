@@ -126,7 +126,7 @@ code-block-auto-collapse-<version>.zip  Release archive
   `git clone --depth 1 https://github.com/Nasller/CodeGlancePro.git _CodeGlancePro`.
   The generated table is committed, so this is only needed when re-verifying the numbers.
 
-See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full architecture notes, the Obsidian APIs involved, and the bug history.
+The bug history lives in [CHANGELOG.md](CHANGELOG.md), and the source is organised by concern under [`src/`](src).
 
 ### Releasing
 
@@ -143,7 +143,7 @@ That single command does everything needed to ship:
 
 Because step 3 and step 4 read from one source, the ZIP, the `release/` directory, and the repository root can never disagree. Do not copy the files by hand and zip them separately — that is exactly how an earlier release ended up shipping a stale `main.js`.
 
-The version comes from `manifest.json`; `package.json` and `versions.json` should be bumped alongside it. The ZIP is written to the repository root and the version must match the Git tag (no `v` prefix). See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full release checklist.
+The version comes from `manifest.json`; `package.json` and `versions.json` should be bumped alongside it. The ZIP is written to the repository root and the version must match the Git tag (no `v` prefix). [CONTRIBUTING.md](CONTRIBUTING.md) lists the five places the version has to agree.
 
 ### Publishing to the community directory
 
@@ -155,7 +155,7 @@ The plugin is listed in the [Obsidian community directory](https://community.obs
 
 The directory then scans the manifest, the release assets, the source code, and the build. Those four groups each report errors, warnings, recommendations, or passes, and an error blocks installation from Obsidian until it is resolved. **Review branch** previews a scan against any branch, tag, or commit — no release required — which is the fastest way to check a fix.
 
-Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The full walkthrough, including listing metadata and screenshots, is in [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) § 13.
+Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The official walkthrough — including listing metadata and screenshot specs — is at [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin).
 
 Only the initial submission uses the form. After that, publishing a new release is all it takes.
 
@@ -290,7 +290,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## 开发
 
-模块划分、用到的 Obsidian API、渲染算法细节、构建与发布流程、以及历次 bug 的成因，都写在 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)（中文）。
+历次 bug 的成因写在 [CHANGELOG.md](CHANGELOG.md)，源码按职责分目录放在 [`src/`](src)。
 
 分支模型、提交信息格式、版本号规范与 issue 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -314,7 +314,7 @@ MIT — see [LICENSE](LICENSE).
 
 之后目录会扫描 manifest、Release 附件、源码与构建，分四组给出错误 / 警告 / 建议 / 通过；存在错误时插件无法从 Obsidian 内安装。**Review branch** 可以在不发 Release 的情况下对任意分支或 commit 预览扫描结果，是验证修复最快的方式。
 
-提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) 第 13 节。
+提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见官方 [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin) 指南。
 
 只有首次上架需要走表单，之后每次更新只需发布新的 Release。
 

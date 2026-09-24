@@ -55,6 +55,21 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   local build existed only in a local note, which is not a source anyone else can
   check.
 
+### Removed
+
+- `PLUGIN_DEVELOPMENT.md` is no longer part of the repository. It was a
+  Chinese-language development document, and the parts a reader actually needs
+  are covered elsewhere: the bug history is in this file, the branch, commit and
+  version rules are in `CONTRIBUTING.md`, and the submission walkthrough is in
+  Obsidian's own documentation, which cannot go stale the way a copy does. The
+  links that used to point at it now point at those sources.
+- `tools/git-guard.mjs`, together with the `git`, `git:check` and
+  `git:check:strict` npm scripts that wrapped it, is no longer part of the
+  repository. It worked around a ref-loss bug in one particular local shell
+  environment, which makes it useless to everyone else — and it could not fail
+  the build even there, because the probe ran in warn-only mode. `preflight` now
+  runs `lint`, `test`, `release` and `validate`, which is exactly what CI runs.
+
 ### Fixed
 
 - The Chinese half of `README.md` still advertised version 1.0.0 and told readers
