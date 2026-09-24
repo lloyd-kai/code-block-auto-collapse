@@ -13,7 +13,7 @@
     "release": "npm run build && node tools/package-release.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.20.3",
+    "@types/node": "^26.6.2",
     "esbuild": "^0.28.2",
     "eslint": "^10.10.0",
     "eslint-plugin-obsidianmd": "^0.4.2",
