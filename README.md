@@ -44,6 +44,33 @@ The interface follows Obsidian's own language: it is English by default and swit
 | Interaction | click behavior (code position / mouse position), jump on, scroll only, hover preview, wheel moves preview |
 | Rendering | syntax highlighting, markers, marker pattern, marker font scale |
 
+## Styling
+
+The plugin decorates with a single wrapper class and a small set of CSS variables, so a theme or a CSS snippet can restyle it without touching Obsidian's own code.
+
+The wrapper is `.code-block-auto-collapse`. State lives in additional classes: `is-collapsed`, `has-code-minimap`, `is-minimap-left`. Inner elements use the `code-block-auto-collapse__` prefix — `__expand`, `__fade`, `__minimap`, `__minimap-canvas`, `__minimap-viewport`, `__lens`, `__lens-line`, `__lens-number`, `__lens-text`.
+
+| Variable | Controls | Written at runtime |
+|---|---|---|
+| `--cbac-preview-height` | Height kept visible while a block is collapsed | Yes — from **Preview lines** |
+| `--cbac-minimap-width` | Width of the minimap column | Yes — from **Minimap width** and the edge drag |
+| `--cbac-canvas-height` | Height of the minimap canvas | Yes |
+| `--cbac-viewport-color` | Fill of the viewport rectangle | Yes — from **Viewport color** |
+| `--cbac-viewport-color-strong` | Fill while the viewport is hovered or dragged | Yes |
+| `--cbac-viewport-border` | Border color of the viewport rectangle | Yes — from **Viewport border color** |
+| `--cbac-viewport-border-width` | Border width, in pixels | Yes — from **Viewport border width** |
+| `--cbac-fade-height` | Height of the fade above the expand button | **No** — CSS only |
+
+The last column is the one that matters. Seven of these are rewritten by the plugin on every layout pass, so overriding them in a snippet will not stick — change the matching setting instead. `--cbac-fade-height` is the only one that is yours to set:
+
+```css
+.code-block-auto-collapse {
+	--cbac-fade-height: 5em;
+}
+```
+
+Everything else is drawn from Obsidian's own variables — `--text-normal`, `--background-primary`, `--code-background`, `--font-monospace`, `--font-ui-small`, `--interactive-accent`, `--background-modifier-border` — so the plugin follows the active theme instead of hard-coding colors.
+
 ## Install
 
 ### From the release ZIP
@@ -79,7 +106,7 @@ tools/smoke-test.mjs                  Pure-logic smoke tests
 eslint.config.mjs                     ESLint config matching the official community plugin review
 .github/workflows/ci.yml              Lint, test and build on Linux and Windows for every push
 .github/workflows/release.yml         Tag-driven release: build, attest, draft the GitHub release
-.github/dependabot.yml                Weekly dependency and action version updates
+.github/dependabot.yml                Weekly dependency and action version updates, targeting develop
 manifest.json / versions.json / styles.css / main.js
 release/code-block-auto-collapse/     Ready-to-copy plugin directory
 code-block-auto-collapse-<version>.zip  Release archive
@@ -99,7 +126,7 @@ code-block-auto-collapse-<version>.zip  Release archive
   `git clone --depth 1 https://github.com/Nasller/CodeGlancePro.git _CodeGlancePro`.
   The generated table is committed, so this is only needed when re-verifying the numbers.
 
-See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full architecture notes, the Obsidian APIs involved, and the bug history.
+The bug history lives in [CHANGELOG.md](CHANGELOG.md), and the source is organised by concern under [`src/`](src).
 
 ### Releasing
 
@@ -116,7 +143,7 @@ That single command does everything needed to ship:
 
 Because step 3 and step 4 read from one source, the ZIP, the `release/` directory, and the repository root can never disagree. Do not copy the files by hand and zip them separately — that is exactly how an earlier release ended up shipping a stale `main.js`.
 
-The version comes from `manifest.json`; `package.json` and `versions.json` should be bumped alongside it. The ZIP is written to the repository root and the version must match the Git tag (no `v` prefix). See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full release checklist.
+The version comes from `manifest.json`; `package.json` and `versions.json` should be bumped alongside it. The ZIP is written to the repository root and the version must match the Git tag (no `v` prefix). [CONTRIBUTING.md](CONTRIBUTING.md) lists the five places the version has to agree.
 
 ### Publishing to the community directory
 
@@ -128,7 +155,7 @@ The plugin is listed in the [Obsidian community directory](https://community.obs
 
 The directory then scans the manifest, the release assets, the source code, and the build. Those four groups each report errors, warnings, recommendations, or passes, and an error blocks installation from Obsidian until it is resolved. **Review branch** previews a scan against any branch, tag, or commit — no release required — which is the fastest way to check a fix.
 
-Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The full walkthrough, including listing metadata and screenshots, is in [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) § 13.
+Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The official walkthrough — including listing metadata and screenshot specs — is at [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin).
 
 Only the initial submission uses the form. After that, publishing a new release is all it takes.
 
@@ -156,7 +183,7 @@ Obsidian's [developer policies](https://docs.obsidian.md/Community+directory/Dev
 | Ads (dynamic or static) | None. |
 | Files read or written outside the vault | None. The plugin does not touch the filesystem at all. |
 | Node.js or Electron APIs | None, so `isDesktopOnly` is `false` and the plugin runs on mobile. |
-| Obfuscated or minified-only source | None. `main.js` is a readable esbuild bundle built from the `src/` tree in this repository. |
+| Obfuscated or minified-only source | None. `main.js` is a standard esbuild bundle built from the `src/` tree in this repository — minified, but not obfuscated, and reproducible from the published source. |
 
 **What the plugin does touch.** It only decorates the DOM that Obsidian has already rendered in Reading view. It never writes to your Markdown files, and it never modifies your vault. Removing the plugin leaves every note byte-for-byte unchanged.
 
@@ -178,7 +205,7 @@ MIT — see [LICENSE](LICENSE).
 
 [English](#code-block-auto-collapse) · **中文**
 
-**版本 1.0.0** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
+**版本 1.0.1** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
 
 一段长代码会把整篇笔记挤没。这个插件让代码块在阅读视图里保持紧凑，并为特别长的代码块配一个真正的代码缩略图 —— 你既能一眼看出代码的形状，也能直接跳转，不用滚过几百行样板代码。
 
@@ -220,11 +247,38 @@ MIT — see [LICENSE](LICENSE).
 | 交互 | 点击行为（按代码位置/按鼠标位置）、跳转时机、仅滚动、悬停预览、滚轮移动预览 |
 | 渲染 | 语法高亮、标记、标记模式、标记字号缩放 |
 
+## 自定义样式
+
+插件只用一层包装类加一组 CSS 变量来做装饰，主题或 CSS 片段可以直接改它，不必动 Obsidian 自身的代码。
+
+包装类是 `.code-block-auto-collapse`；状态用附加类表达：`is-collapsed`、`has-code-minimap`、`is-minimap-left`。内部元素统一 `code-block-auto-collapse__` 前缀 —— `__expand`、`__fade`、`__minimap`、`__minimap-canvas`、`__minimap-viewport`、`__lens`、`__lens-line`、`__lens-number`、`__lens-text`。
+
+| 变量 | 控制什么 | 是否由脚本写入 |
+|---|---|---|
+| `--cbac-preview-height` | 折叠时保留的高度 | 是 —— 来自**折叠时显示的行数** |
+| `--cbac-minimap-width` | 缩略图列宽 | 是 —— 来自**缩略图宽度**与内边缘拖拽 |
+| `--cbac-canvas-height` | 缩略图 canvas 高度 | 是 |
+| `--cbac-viewport-color` | 视窗矩形的填充色 | 是 —— 来自**视窗颜色** |
+| `--cbac-viewport-color-strong` | 视窗被悬停或拖拽时的填充色 | 是 |
+| `--cbac-viewport-border` | 视窗矩形边框色 | 是 —— 来自**视窗边框颜色** |
+| `--cbac-viewport-border-width` | 边框厚度（像素） | 是 —— 来自**视窗边框厚度** |
+| `--cbac-fade-height` | 展开按钮上方渐变遮罩的高度 | **否** —— 只由 CSS 决定 |
+
+最后一列是关键：其中 7 个在每次布局时都会被脚本重写，**在片段里覆盖它们不会生效**，要改请改对应的设置项。只有 `--cbac-fade-height` 是留给你的：
+
+```css
+.code-block-auto-collapse {
+	--cbac-fade-height: 5em;
+}
+```
+
+其余样式全部取自 Obsidian 自己的变量 —— `--text-normal`、`--background-primary`、`--code-background`、`--font-monospace`、`--font-ui-small`、`--interactive-accent`、`--background-modifier-border`，所以插件跟随当前主题，没有硬编码颜色。
+
 ## 安装
 
 ### 用发布包
 
-把 `code-block-auto-collapse-1.0.0.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
+把 `code-block-auto-collapse-1.0.1.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
 
 包内恰好三个文件 —— `main.js`、`manifest.json`、`styles.css`，位于 `code-block-auto-collapse/` 目录下。它由 `npm run release` 生成，始终与当前构建一致。
 
@@ -236,7 +290,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## 开发
 
-模块划分、用到的 Obsidian API、渲染算法细节、构建与发布流程、以及历次 bug 的成因，都写在 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)（中文）。
+历次 bug 的成因写在 [CHANGELOG.md](CHANGELOG.md)，源码按职责分目录放在 [`src/`](src)。
 
 分支模型、提交信息格式、版本号规范与 issue 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -244,8 +298,11 @@ MIT — see [LICENSE](LICENSE).
 
 - `npm run build` —— `tsc --noEmit` 类型检查 + esbuild 打包。
 - `npm test` —— 纯逻辑冒烟测试（几何、文本解析、权重表），不需要 DOM。
+- `npm run lint` —— 官方 [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) 规则集，也就是 Obsidian 审阅人比对的那套。当前 **0 error、0 warning**。
 - `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
+- `npm run validate` —— 把上架要求变成机械断言：manifest 字段约束、版本号一致、三份 `main.js` 逐字节相同，以及扫描器会查的几条硬规则（`main.js` 不得被 Git 跟踪、README 必须有披露章节、`package.json` 必须有扫描器认得的构建脚本）。
 - `npm run preflight` —— `lint → test → release → validate`，发版前跑这一条。
+- `npm run weights` —— 重新生成 `src/render/character-weights.ts`，需要先 `git clone --depth 1 https://github.com/Nasller/CodeGlancePro.git _CodeGlancePro`。生成表已提交，只在复核数值时才需要。
 
 ## 发布与上架
 
@@ -257,7 +314,7 @@ MIT — see [LICENSE](LICENSE).
 
 之后目录会扫描 manifest、Release 附件、源码与构建，分四组给出错误 / 警告 / 建议 / 通过；存在错误时插件无法从 Obsidian 内安装。**Review branch** 可以在不发 Release 的情况下对任意分支或 commit 预览扫描结果，是验证修复最快的方式。
 
-提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) 第 13 节。
+提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见官方 [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin) 指南。
 
 只有首次上架需要走表单，之后每次更新只需发布新的 Release。
 
@@ -274,7 +331,7 @@ Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Devel
 | 广告（动态或静态） | 无。 |
 | 读写 vault 之外的文件 | 无。插件完全不碰文件系统。 |
 | Node.js 或 Electron API | 未使用，因此 `isDesktopOnly` 为 `false`，移动端可用。 |
-| 混淆或仅提供压缩代码 | 无。`main.js` 是由本仓库 `src/` 构建出的可读 esbuild 产物。 |
+| 混淆或仅提供压缩代码 | 无。`main.js` 是由本仓库 `src/` 构建出的标准 esbuild 产物 —— 经过压缩但未混淆，可从公开源码复现。 |
 
 **插件实际触碰的东西。** 它只装饰 Obsidian 已在阅读视图中渲染好的 DOM，从不写入你的 Markdown 文件，也不修改 vault。卸载插件后，每篇笔记都保持原样。
 
@@ -283,6 +340,8 @@ Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Devel
 ## 反馈
 
 发现 bug 或想要新功能？到 [github.com/lloyd-kai/code-block-auto-collapse/issues](https://github.com/lloyd-kai/code-block-auto-collapse/issues) 提 issue。
+
+如果是可被利用的安全问题，请走[私下报告漏洞](https://github.com/lloyd-kai/code-block-auto-collapse/security/advisories/new)，不要开公开 issue —— 见 [SECURITY.md](.github/SECURITY.md)。
 
 ## 许可
 

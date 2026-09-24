@@ -28,7 +28,7 @@ report that can be acted on and one that cannot:
 The plugin is a Reading view post-processor. It reads the DOM Obsidian has
 already rendered and decorates it. It makes no network requests, writes nothing
 to disk, ships no third-party runtime code, and does not touch any file outside
-the vault. See the Disclosures section of the [README](README.md) for the full
+the vault. See the Disclosures section of the [README](../README.md) for the full
 list.
 
 Reports that are therefore most useful:

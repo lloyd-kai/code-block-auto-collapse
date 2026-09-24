@@ -1,9 +1,10 @@
 // 提交到官方社区插件目录前的自动校验。
 //
-// 把 PLUGIN_DEVELOPMENT.md 第 13.4 节的检查清单变成可执行的断言，覆盖五类容易翻车的问题：
+// 把官方社区目录的提交要求变成可执行的断言，覆盖五类容易翻车的问题：
 //   1. manifest.json 的字段约束（id/name/version/description 的官方硬性要求）；
 //   2. 版本在 manifest / package / versions.json / ZIP 名之间的一致性；
-//   3. 根目录构建产物、release/ 目录、ZIP 内的 main.js 是否真的是同一份；
+//   3. 根目录构建产物、release/ 目录、ZIP 内的 main.js 是否真的是同一份，
+//      以及 README 中英两半的版本引用是否都跟上了（只改一半是常见事故）；
 //   4. 社区目录新流程的约束（main.js 不得进仓库、README 必须有披露章节、
 //      package.json 必须有扫描器能识别的生产构建脚本）；
 //   5. 发布工作流是否存在（打 tag 自动建 Release，官方推荐并启用产物溯源证明）。
@@ -208,6 +209,58 @@ if (readme && !/disclosur|披露/i.test(readme)) {
 	fail("README.md 里找不到披露章节（Disclosures）。开发者政策要求逐项声明账号、付费、网络服务、vault 外文件访问、广告、遥测、闭源，没有也要写明「无」");
 }
 
+// README 有中英两半，版本号在两半各写一次。只改一半是很容易发生的事故 ——
+// 中文半篇曾长期停在 1.0.0，还让读者去解压一个根本不存在的 ZIP。
+// 两半都断言一遍，并把正文里出现的发布包名一起查掉。
+if (readme && manifest) {
+	const wanted = manifest.version;
+
+	for (const [label, pattern] of [
+		["英文半篇", /^\*\*Version (\d+\.\d+\.\d+)\*\*/m],
+		["中文半篇", /^\*\*版本 (\d+\.\d+\.\d+)\*\*/m],
+	]) {
+		const found = readme.match(pattern);
+		if (!found) {
+			fail(`README.md 的${label}找不到版本行（形如 **Version ${wanted}** / **版本 ${wanted}**）`);
+		} else if (found[1] !== wanted) {
+			fail(`README.md 的${label}版本行写的是 ${found[1]}，应为 ${wanted} —— 版本提升时两半都要改`);
+		}
+	}
+
+	for (const [, mentioned] of readme.matchAll(/code-block-auto-collapse-(\d+\.\d+\.\d+)\.zip/g)) {
+		if (mentioned !== wanted) {
+			fail(`README.md 引用了 code-block-auto-collapse-${mentioned}.zip，但当前版本是 ${wanted}`);
+		}
+	}
+}
+
+// 条目页会展示 README 的摘录，并把其中的相对链接与图片重写为指向仓库。
+// 所以写错的相对路径不是「文档小瑕疵」，而是公开页面上的断链。
+// 覆盖所有被跟踪的 .md：`.github/SECURITY.md` 曾经用 `README.md` 指自己所在目录，应为 `../README.md`。
+const docFiles = gitTracked(["*.md"]);
+if (docFiles === null) {
+	warn("环境里没有 git，跳过文档相对链接检查");
+} else {
+	for (const file of docFiles) {
+		// git ls-files 读的是索引：文件已从磁盘删掉但还没 git add 时，索引里仍然有它。
+		// 直接 readFileSync 会抛裸 ENOENT，看不出是哪一步出的问题。
+		if (!existsSync(join(root, file))) {
+			fail(`${file} 在索引里但磁盘上不存在 —— 删掉文件后记得 git add`);
+			continue;
+		}
+		const text = readFileSync(join(root, file), "utf8");
+		for (const match of text.matchAll(/!?\[[^\]]*\]\(([^)\s]+?)\)/g)) {
+			const target = match[1];
+			if (/^(https?:|mailto:|#)/.test(target)) continue;
+			const relative = decodeURIComponent(target.split("#")[0]);
+			if (!relative) continue;
+			if (!existsSync(resolve(root, dirname(file), relative))) {
+				fail(`${file} 里的相对链接指向不存在的路径：${target}`);
+			}
+		}
+	}
+}
+
 /* ---------- 4. 新流程约束（community.obsidian.md） ---------- */
 
 // 社区目录的扫描器按顺序取第一个存在的构建命令。
@@ -228,10 +281,8 @@ const localOnly = [
 	["main.js.map", "构建产物"],
 	["data.json", "插件写进 vault 的本地设置"],
 	["_CodeGlancePro", "缩略图算法的参考实现，需要时临时克隆"],
-	["_ref", "官方文档镜像与本地参考资料"],
 	["release", "由 npm run release 生成"],
-	["AGENTS.md", "给本地 AI 助手的工作交接说明"],
-	["PLUGIN_SUBMISSION_ZH.md", "官方文档的中文整理稿，版权属 Obsidian"],
+	["_local", "本地工作目录：AGENTS.md / 待办 / 官方规范整理 / 官方文档镜像"],
 	[".workbuddy-ai", "本地助手的工作记忆"],
 ];
 const tracked = gitTracked(localOnly.map(([name]) => name));
@@ -311,8 +362,8 @@ if (!existsSync(zipPath)) {
 if (existsSync(join(root, "_CodeGlancePro"))) {
 	warn("_CodeGlancePro/ 存在于仓库内，确认它已被 .gitignore 排除，不要提交");
 }
-if (existsSync(join(root, "_ref"))) {
-	warn("_ref/ 存在于仓库内（官方文档镜像），确认它已被 .gitignore 排除，不要提交");
+if (existsSync(join(root, "_local"))) {
+	warn("_local/ 存在于仓库内（本地工作文档与官方文档镜像），确认它已被 .gitignore 排除，不要提交");
 }
 if (existsSync(join(root, "data.json"))) {
 	warn("根目录有 data.json（插件本地设置），确认不要提交");

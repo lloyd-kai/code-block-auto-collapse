@@ -9,6 +9,111 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+### Added
+
+- A Styling section in `README.md` (and 自定义样式 in the Chinese half)
+  documenting the wrapper class, the state classes, the inner-element prefix, and
+  the eight `--cbac-*` custom properties. Seven of them are rewritten by the
+  script on every layout pass, so only `--cbac-fade-height` can be overridden
+  from a CSS snippet; saying so in the README is cheaper than answering the
+  issue later.
+
+### Changed
+
+- `.github/dependabot.yml` now targets `develop` instead of the default branch.
+  Dependency upgrades are integration work, and `main` has to stay exactly equal
+  to the source of the published tag: the directory rebuilds the default branch
+  and compares the result against the release assets, so merging a dependency
+  pull request into `main` would be editing an already-released version. Without
+  `target-branch`, Dependabot aims at the default branch, and all three pull
+  requests it opened pointed at `main`.
+- The `types` group was split into `node-types` and `typescript`, and
+  `typescript` is now ignored from 6.1.0 upwards. `typescript-eslint` 8.x
+  declares `typescript >=4.8.4 <6.1.0`, and `eslint.config.mjs` enables
+  `projectService` for type-aware linting, so a newer compiler makes
+  `npm run lint` fail while `tsc --noEmit` and esbuild keep passing. Remove the
+  ignore once `typescript-eslint` supports the newer compiler.
+- `eslint` was bumped to 10 and `esbuild` to 0.28. The esbuild bump was checked to
+  be output-neutral before it was taken: building the same source with 0.25.12 and
+  with 0.28.2 produced a byte-identical `main.js`. That check matters because the
+  released artifact has to keep matching what the default branch builds, so a
+  bundler upgrade that changes the output cannot be taken casually.
+- `@types/node` was realigned from `^20` to `^22` so that it describes the Node.js
+  the workflows actually run. It had been two majors behind the runtime, while the
+  26 that Dependabot proposed is four majors ahead of it; neither describes what
+  runs. Nothing in `src/` depends on the Node globals it injects — every timer is
+  written `ownerWindow.setTimeout(...)`, so the type package is never consulted
+  for them — which is why the change is provably inert rather than merely
+  plausible.
+- `PLUGIN_DEVELOPMENT.md` now documents how to verify the build-reproducibility
+  check *before* submitting rather than after. The release workflow signs the
+  three artifacts with `actions/attest`, and an attestation is queryable
+  anonymously through the GitHub API, so the digests can be compared against a
+  clean local rebuild — and the recorded commit checked against the default
+  branch — while the submission is still being prepared. All three artifacts
+  matched for 1.0.1. Until now the claim that the published artifacts matched a
+  local build existed only in a local note, which is not a source anyone else can
+  check.
+
+### Removed
+
+- `PLUGIN_DEVELOPMENT.md` is no longer part of the repository. It was a
+  Chinese-language development document, and the parts a reader actually needs
+  are covered elsewhere: the bug history is in this file, the branch, commit and
+  version rules are in `CONTRIBUTING.md`, and the submission walkthrough is in
+  Obsidian's own documentation, which cannot go stale the way a copy does. The
+  links that used to point at it now point at those sources.
+- `tools/git-guard.mjs`, together with the `git`, `git:check` and
+  `git:check:strict` npm scripts that wrapped it, is no longer part of the
+  repository. It worked around a ref-loss bug in one particular local shell
+  environment, which makes it useless to everyone else — and it could not fail
+  the build even there, because the probe ran in warn-only mode. `preflight` now
+  runs `lint`, `test`, `release` and `validate`, which is exactly what CI runs.
+
+### Fixed
+
+- The Chinese half of `README.md` still advertised version 1.0.0 and told readers
+  to unzip `code-block-auto-collapse-1.0.0.zip`, a file that does not exist. The
+  English half had been updated and the other half was missed, which is the
+  failure mode of keeping two parallel translations in one file: a version bump
+  is only done when both halves agree, and nothing was checking that. `npm run
+  validate` now asserts that both version lines, and every
+  `code-block-auto-collapse-<version>.zip` reference in the file, name
+  `manifest.version`; the release checklist in `PLUGIN_DEVELOPMENT.md` lists the
+  assertion alongside the other version checks.
+- The Chinese command list was missing `lint`, `validate`, and `weights`, so it
+  described a smaller set of checks than the English one.
+- The release walkthrough in `PLUGIN_DEVELOPMENT.md` used `1.0.0` in its
+  `git tag` example, so anyone following it literally would have collided with
+  the tag that already exists. It now uses a `<version>` placeholder with the
+  naming rule stated inline.
+- Both halves of the README called `main.js` a "readable esbuild bundle" in the
+  disclosures. It is minified, and a disclosure is the worst place to describe
+  something inaccurately. What the row actually needs to establish is that the
+  build is reproducible from the published source, which it is, so it now says
+  that instead.
+- The Chinese support section did not point at the private vulnerability
+  reporting path, so a Chinese-speaking reader who found something exploitable
+  had only the public issue tracker to go on.
+- `CONTRIBUTING.md` described a narrower convention than this repository follows.
+  Its scope list omitted `docs`, `changelog`, `submission`, and `validate`, which
+  between them account for eight of the twenty-four scope uses in the history,
+  and the direct-push allowance for `develop` named only `docs` and `chore` while
+  six of the sixteen direct pushes were `build` or `ci`. Both now say what the
+  history does: direct pushes are for changes with no runtime effect, and no
+  commit touching `src/` or `styles.css` has ever been pushed straight to
+  `develop`. A published convention that the project's own commits routinely break
+  is worse than no convention, because a contributor reads it as a rule and then
+  has to guess which parts of it are real.
+- `.github/SECURITY.md` linked to the README as `README.md`, which resolves to
+  `.github/README.md` — a file that does not exist. A security policy is the one
+  document a reader arrives at while looking for somewhere to report something
+  privately, so a dead link there is the worst place to have one. `npm run
+  validate` now checks that every relative link and image in every tracked
+  Markdown file resolves. That check earns its place beyond this bug: the
+  directory listing renders the repository's README, so a typo becomes a dead
+  link on a public page rather than a local annoyance.
+
 ## [1.0.1] - 2026-09-17
 
 ### Added
@@ -25,8 +130,23 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   `merge`, `pull`, `rebase`, `cherry-pick`, `revert`, and `reset`. The guard
   picks a working Git, verifies the result of every ref-mutating command, and
   fails loudly when the result is wrong.
+- `.github/dependabot.yml`, which takes over tracking the pinned action versions
+  and the npm dependencies, one grouped pull request per ecosystem per week.
+  `upload-artifact` had already been left pointing at Node.js 20 while the runner
+  forced it onto Node.js 24, and nothing was watching for that.
+- `.github/SECURITY.md`, documenting the private vulnerability reporting path.
 
 ### Changed
+
+- `PLUGIN_DEVELOPMENT.md` no longer carries the two sections that only applied to
+  the machine this was developed on: the draft issue list and the notes on the
+  shell sandbox's Git defect, including local absolute paths and internal tool
+  names. Both moved to a local, uncommitted file. The published guide keeps the
+  architecture, API, rendering and release material, and section 11 now records
+  the bug history of both releases.
+- `npm run validate` now asserts that every local-only path is untracked, not
+  just `main.js`. `.gitignore` does not stop `git add -f`, and the official docs
+  mirror is the sort of thing that must not be pushed by accident.
 
 - `npm run git:check` runs in warn-only mode and cannot fail the build. Its
   verdict depends on the machine — whether a system Git is installed, whether

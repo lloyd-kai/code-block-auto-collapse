@@ -20,10 +20,17 @@ test-vault/
 # 参考实现：需要时临时克隆，见 tools/generate-character-weights.mjs
 _CodeGlancePro/
 
-# 本地的参考资料目录，不是插件源码
-_ref/
+# 本地工作目录：不进仓库的参考资料与工作文档。
+# AGENTS.md / 你需要做的事.md / PLUGIN_SUBMISSION_ZH.md / ISSUE_DRAFTS.md / _ref/ 都收在里面，
+# 分工说明见 _local/README.md。之所以整个目录一起忽略，是为了让仓库根目录只剩该进仓库的文件。
+_local/
 
-# 官方文档的中文整理稿（本地参考用，非插件源码；内容版权属 Obsidian）
+# 兜底：这些名字若出现在别处同样不该提交
+_ref/
+AGENTS.md
+HANDOVER.md
+你需要做的事.md
+PLUGIN_DEVELOPMENT.md
 PLUGIN_SUBMISSION_ZH.md
 
 # 本地工作目录：解压出来的发布包副本、旧版本备份
@@ -31,9 +38,6 @@ backup/
 
 # 本地助手的工作记忆，不属于插件源码
 .workbuddy-ai/
-
-# 给 AI 编码助手看的项目导览（本地工作交接说明，不进仓库、不随插件发布）
-AGENTS.md
 
 # 编辑器与操作系统噪声
 .vscode/
