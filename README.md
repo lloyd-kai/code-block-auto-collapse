@@ -334,7 +334,7 @@ npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
 常用命令：
 
 - `npm run build` —— `tsc --noEmit` 类型检查 + esbuild 打包。
-- `npm test` —— 纯逻辑冒烟测试（几何、文本解析、权重表），不需要 DOM。
+- `npm test` —— 纯逻辑冒烟测试，加上在 Node / Happy DOM 中执行的窗口生命周期、输入交互与本地安装回归；不启动 Obsidian。
 - `npm run lint` —— 官方 [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) 规则集，也就是 Obsidian 审阅人比对的那套。当前 **0 error、0 warning**。
 - `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
 - `npm run validate` —— 把上架要求变成机械断言：manifest 字段约束、版本号一致、三份 `main.js` 逐字节相同，以及扫描器会查的几条硬规则（`main.js` 不得被 Git 跟踪、README 必须有披露章节、`package.json` 必须有扫描器认得的构建脚本）。
