@@ -81,6 +81,25 @@
   pointer-events: auto;
 }
 
+.code-block-auto-collapse__expand:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .code-block-auto-collapse__expand {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-block-auto-collapse__expand,
+  .code-block-auto-collapse__minimap {
+    transition: none;
+  }
+}
+
 /* ---------- 缩略图 ---------- */
 
 .code-block-auto-collapse.has-code-minimap {

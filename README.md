@@ -85,6 +85,29 @@ The ZIP holds exactly three files — `main.js`, `manifest.json`, and `styles.cs
 2. Copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/code-block-auto-collapse/`.
 3. Enable **Code Block Auto Collapse** in Obsidian's community plugins settings.
 
+### Develop on macOS
+
+Use Node.js 22 (`nvm use` reads `.nvmrc`) and run `npm ci` after moving this
+repository from another computer. Native dependencies in `node_modules` must be
+installed for the current OS and CPU.
+
+```bash
+npm ci
+npm run preflight
+npm run install:local -- --vault "/Users/you/Documents/My Vault"
+```
+
+Open the vault in Obsidian first so its `.obsidian` directory exists. The install
+command builds and copies only the three runtime files, preserving notes and
+`data.json`. Reload the plugin after installing. This command uses the default
+`.obsidian` configuration directory.
+
+Each native window now owns its animation frames, size observer and display-scale
+listener. Moving a tab between windows rebinds rendering to its new window;
+changing between Retina and external displays repaints at the current pixel
+density. Control-click and pinch gestures keep their native behavior, and hover
+preview scrolling accumulates small trackpad deltas. See [macOS verification](MACOS_TESTING.md).
+
 ## Development
 
 ```text
@@ -104,7 +127,7 @@ tools/package-release.mjs             Syncs release/ and packs the release ZIP
 tools/validate-submission.mjs         Submission checks (manifest constraints, version agreement, artifact hashes)
 tools/smoke-test.mjs                  Pure-logic smoke tests
 eslint.config.mjs                     ESLint config matching the official community plugin review
-.github/workflows/ci.yml              Lint, test and build on Linux and Windows for every push
+.github/workflows/ci.yml              Lint, test and build on Linux, Windows and macOS
 .github/workflows/release.yml         Tag-driven release: build, attest, draft the GitHub release
 .github/dependabot.yml                Weekly dependency and action version updates, targeting develop
 manifest.json / versions.json / styles.css / main.js
@@ -117,7 +140,7 @@ code-block-auto-collapse-<version>.zip  Release archive
 ### Scripts
 
 - `npm run build` runs `tsc --noEmit` first, then bundles with esbuild.
-- `npm test` runs the smoke tests for the geometry, text parsing, and weight tables (no DOM required).
+- `npm test` runs pure-logic smoke tests plus DOM lifecycle, input and local-install regressions. The DOM suite runs in Node with Happy DOM; it does not launch Obsidian.
 - `npm run lint` runs the official [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) rule set, which is what Obsidian's reviewers check against. It currently reports **zero errors and zero warnings**.
 - `npm run release` builds, syncs `release/code-block-auto-collapse/`, and packs `code-block-auto-collapse-<version>.zip` from the same in-memory artifacts — so the three can never drift apart.
 - `npm run validate` checks the submission requirements mechanically: manifest field constraints, version agreement across `manifest.json` / `package.json` / `versions.json` / the ZIP name, and that the root `main.js`, the `release/` copy, and the copy inside the ZIP are byte-identical. It also enforces the rules the community directory scanner applies — `main.js` must not be tracked by Git, the README must carry a disclosures section, and `package.json` must expose a build script the scanner can find.
@@ -288,6 +311,20 @@ MIT — see [LICENSE](LICENSE).
 2. 把 `main.js`、`manifest.json`、`styles.css` 复制到 `<vault>/.obsidian/plugins/code-block-auto-collapse/`。
 3. 在 Obsidian 的第三方插件设置里启用 **Code Block Auto Collapse**。
 
+### 在 macOS 上开发
+
+使用 Node.js 22（可运行 `nvm use`），从其他电脑迁入项目后先执行 `npm ci`，让原生依赖匹配当前系统与 CPU。
+
+```bash
+npm ci
+npm run preflight
+npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
+```
+
+先在 Obsidian 打开笔记库，生成默认的 `.obsidian` 配置目录。安装命令会构建并复制三个运行时文件，保留笔记与 `data.json`；安装后重新启用插件即可。使用自定义配置目录时请按上方手动复制方式安装。
+
+每个原生窗口独立处理动画帧、尺寸观察与屏幕像素密度变化；标签页跨窗口移动时重新绑定渲染。内屏与外接屏切换时重绘 Retina 画布，保留 Control-click 和捏合手势的原生行为，悬停预览按累计的触控板滚动量移动。验证步骤见 [MACOS_TESTING.md](MACOS_TESTING.md)。
+
 ## 开发
 
 历次 bug 的成因写在 [CHANGELOG.md](CHANGELOG.md)，源码按职责分目录放在 [`src/`](src)。
@@ -297,7 +334,7 @@ MIT — see [LICENSE](LICENSE).
 常用命令：
 
 - `npm run build` —— `tsc --noEmit` 类型检查 + esbuild 打包。
-- `npm test` —— 纯逻辑冒烟测试（几何、文本解析、权重表），不需要 DOM。
+- `npm test` —— 纯逻辑冒烟测试，加上在 Node / Happy DOM 中执行的窗口生命周期、输入交互与本地安装回归；不启动 Obsidian。
 - `npm run lint` —— 官方 [`eslint-plugin-obsidianmd`](https://github.com/obsidianmd/eslint-plugin) 规则集，也就是 Obsidian 审阅人比对的那套。当前 **0 error、0 warning**。
 - `npm run release` —— 构建 → 同步 `release/` → 打 ZIP，三者取自同一份内存产物。
 - `npm run validate` —— 把上架要求变成机械断言：manifest 字段约束、版本号一致、三份 `main.js` 逐字节相同，以及扫描器会查的几条硬规则（`main.js` 不得被 Git 跟踪、README 必须有披露章节、`package.json` 必须有扫描器认得的构建脚本）。

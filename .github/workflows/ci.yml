@@ -1,6 +1,6 @@
-# 每次推送与 PR 都跑一遍 lint / test / build，并且**同时跑 Linux 与 Windows**。
+# 每次推送与 PR 都跑一遍 lint / test / build，覆盖 Linux、Windows 与 macOS。
 #
-# 为什么必须两个平台：本插件的开发机是 Windows，而 GitHub Actions 的发布跑在
+# 为什么需要平台矩阵：原开发环境是 Windows，macOS 也是开发目标，而发布跑在
 # ubuntu-latest。只在一个平台上验证过的代码，很容易把平台差异带进发布流程。
 # 真实案例：tools/smoke-test.mjs 曾用 `new URL(...).pathname.replace(/^\//, "")`
 # 把文件 URL 转成本地路径 —— Windows 下得到 `C:/Users/...`（碰巧还是绝对路径），
@@ -10,6 +10,9 @@
 #
 # 转路径一律用 node:url 的 fileURLToPath / pathToFileURL，不要手写 pathname。
 name: CI
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -32,12 +35,13 @@ jobs:
     name: Lint, test and build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
-      # 一个平台挂了也把另一个跑完，便于一次看清差异。
+      # 一个平台挂了也把其余平台跑完，便于一次看清差异。
       fail-fast: false
       matrix:
         os:
           - ubuntu-latest
           - windows-latest
+          - macos-latest
     steps:
       - name: Check out
         uses: actions/checkout@v7
