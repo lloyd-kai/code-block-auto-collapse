@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { WheelSteps } from "../platform/wheel-steps";
 import { CodeLens } from "../preview/code-lens";
 import { EMPTY_MARKERS, renderMinimap } from "../render/minimap-renderer";
 import {
@@ -55,12 +56,15 @@ export class CodeMinimap {
 	private readonly wrapperEl: HTMLElement;
 	private readonly preEl: HTMLElement;
 	private readonly codeEl: HTMLElement;
-	private readonly ownerWindow: Window;
+	private ownerWindow: Window;
 	private readonly containerEl: HTMLElement;
 	private readonly canvasEl: HTMLCanvasElement;
 	private readonly viewportEl: HTMLElement;
 	private readonly lens: CodeLens;
-	private readonly renderFrame: Cancellable;
+	private renderFrame: Cancellable;
+	private readonly wheelSteps = new WheelSteps();
+	private pendingJump: number | null = null;
+	private navigationFrame: number | null = null;
 
 	private lines: readonly string[] = [];
 	private lineOffsets: readonly number[] = [];
@@ -117,6 +121,7 @@ export class CodeMinimap {
 		this.containerEl.addEventListener("pointermove", this.onPointerMove);
 		this.containerEl.addEventListener("pointerup", this.onPointerUp);
 		this.containerEl.addEventListener("pointercancel", this.onPointerUp);
+		this.containerEl.addEventListener("lostpointercapture", this.onPointerUp);
 		this.containerEl.addEventListener("pointerleave", this.onPointerLeave);
 		this.containerEl.addEventListener("wheel", this.onWheel, { passive: false });
 		this.containerEl.addEventListener("keydown", this.onKeyDown);
@@ -154,6 +159,20 @@ export class CodeMinimap {
 		this.lookup = null;
 		this.lookupCode = null;
 		this.scheduleRender();
+	}
+
+	/** DOM 可以被 Obsidian 移入弹出窗口；旧窗口的 RAF/计时器不能继续持有它。 */
+	refreshWindow(): void {
+		const win = this.wrapperEl.ownerDocument.defaultView;
+		if (!win || win === this.ownerWindow) return;
+		this.cancelInteraction();
+		this.cancelNavigation();
+		this.renderFrame.cancel();
+		this.hideLens();
+		this.ownerWindow = win;
+		this.renderFrame = throttleFrame(() => this.draw(), win);
+		this.refreshColors();
+		this.update();
 	}
 
 	/** 宽度变化后重新布局。 */
@@ -208,6 +227,8 @@ export class CodeMinimap {
 	}
 
 	destroy(): void {
+		this.cancelInteraction();
+		this.cancelNavigation();
 		this.renderFrame.cancel();
 		this.clearLensTimer();
 		this.lens.destroy();
@@ -364,7 +385,9 @@ export class CodeMinimap {
 	}
 
 	private readonly onPointerDown = (event: PointerEvent): void => {
-		if (event.button !== 0) return;
+		// macOS 的 Control-click 是辅助点击，不能同时触发跳转或宽度调整。
+		if (event.button !== 0 || event.ctrlKey || this.drag || this.resize || this.pendingJump !== null) return;
+		this.hideLens();
 		const settings = this.host.settings;
 		const rect = this.containerEl.getBoundingClientRect();
 		const y = event.clientY - rect.top;
@@ -393,6 +416,10 @@ export class CodeMinimap {
 		if (settings.jumpOn === "down") {
 			event.preventDefault();
 			this.navigateAt(y);
+		} else if (settings.jumpOn === "up") {
+			this.pendingJump = event.pointerId;
+			this.capture(event.pointerId);
+			event.preventDefault();
 		}
 	};
 
@@ -424,24 +451,21 @@ export class CodeMinimap {
 
 	private readonly onPointerUp = (event: PointerEvent): void => {
 		if (this.resize && event.pointerId === this.resize.pointerId) {
-			this.containerEl.classList.remove("is-resizing");
-			this.release(event.pointerId);
-			this.host.requestWidth(this.resize.lastWidth, true);
-			this.resize = null;
+			this.cancelInteraction();
 			return;
 		}
 		if (this.drag && event.pointerId === this.drag.pointerId) {
-			this.drag = null;
-			this.viewportEl.classList.remove("is-dragging");
-			this.release(event.pointerId);
+			this.cancelInteraction();
 			return;
 		}
 		const settings = this.host.settings;
+		if (this.pendingJump !== event.pointerId) return;
+		this.cancelInteraction();
 		// 只认左键真正松开：pointercancel 的 button 是 -1，右键松开也不该触发跳转
-		if (settings.jumpOn === "up" && event.type === "pointerup" && event.button === 0) {
+		if (settings.jumpOn === "up" && event.type === "pointerup" && event.button === 0 && !event.ctrlKey) {
 			const rect = this.containerEl.getBoundingClientRect();
 			const y = event.clientY - rect.top;
-			if (y >= 0 && y <= rect.height) this.navigateAt(y);
+			if (y >= 0 && y <= rect.height && event.clientX >= rect.left && event.clientX <= rect.right) this.navigateAt(y);
 		}
 	};
 
@@ -451,11 +475,13 @@ export class CodeMinimap {
 	};
 
 	private readonly onWheel = (event: WheelEvent): void => {
+		// 触控板捏合常表现为 ctrl+wheel；横向滚动也交还给原生视图。
+		if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
 		const settings = this.host.settings;
 		if (settings.wheelMoveCodeLens && this.lens.isVisible()) {
-			const delta = event.deltaY > 0 ? 1 : event.deltaY < 0 ? -1 : 0;
-			if (delta !== 0) {
-				this.lens.move(delta, this.lines.length);
+			if (event.deltaY !== 0) {
+				const lines = this.wheelSteps.consume(event.deltaY, event.deltaMode);
+				if (lines !== 0) this.lens.move(lines, this.lines.length);
 				event.preventDefault();
 				event.stopPropagation();
 			}
@@ -539,6 +565,7 @@ export class CodeMinimap {
 
 	private hideLens(): void {
 		this.clearLensTimer();
+		this.wheelSteps.reset();
 		this.lens.hide();
 	}
 
@@ -549,19 +576,40 @@ export class CodeMinimap {
 	}
 
 	private navigateAt(y: number): void {
+		this.cancelNavigation();
 		const settings = this.host.settings;
 		const ratio = this.ratioAt(y);
 		this.hideLens();
 		if (this.host.isCollapsed() && !settings.moveOnly) {
 			// 展开会改变布局，下一帧重新测量后再滚动
 			this.host.expand();
-			this.ownerWindow.requestAnimationFrame(() => {
+			this.navigationFrame = this.ownerWindow.requestAnimationFrame(() => {
+				this.navigationFrame = null;
 				this.update();
 				this.scrollToRatio(ratio, settings);
 			});
 			return;
 		}
 		this.scrollToRatio(ratio, settings);
+	}
+
+	private cancelNavigation(): void {
+		if (this.navigationFrame === null) return;
+		this.ownerWindow.cancelAnimationFrame(this.navigationFrame);
+		this.navigationFrame = null;
+	}
+
+	private cancelInteraction(): void {
+		const pointerId = this.resize?.pointerId ?? this.drag?.pointerId ?? this.pendingJump;
+		const width = this.resize?.lastWidth;
+		// 先清空状态再 release，避免 lostpointercapture 重新进入同一清理流程。
+		this.resize = null;
+		this.drag = null;
+		this.pendingJump = null;
+		this.containerEl.classList.remove("is-resizing");
+		this.viewportEl.classList.remove("is-dragging");
+		if (pointerId !== null) this.release(pointerId);
+		if (width !== undefined) this.host.requestWidth(width, true);
 	}
 
 	private scrollToRatio(ratio: number, settings: CodeBlockSettings): void {
@@ -576,7 +624,8 @@ export class CodeMinimap {
 		const blockTop = blockRect.top - containerRect.top + container.scrollTop;
 		const lineTop = geometry.scale > 0 ? docY / geometry.scale : 0;
 		const target = blockTop + lineTop - containerRect.height / 2;
-		container.scrollTo({ top: clamp(target, 0, maxScrollTop(container)), behavior: "smooth" });
+		const behavior = this.ownerWindow.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+		container.scrollTo({ top: clamp(target, 0, maxScrollTop(container)), behavior });
 	}
 
 	private capture(pointerId: number): void {

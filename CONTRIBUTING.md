@@ -194,9 +194,11 @@ problem you have not described.
 
 ## Pull requests
 
-Pull requests here are **internal** — they move work between branches in this
-repository. They are not how the plugin is published; that happens through the
-community directory, described in the next section.
+Pull requests may come from a feature branch in this repository or a fork. For a
+fork, set `origin` to your fork and `upstream` to
+`lloyd-kai/code-block-auto-collapse`, branch from `upstream/develop`, then open a
+cross-fork pull request with the original repository's `develop` as its base.
+Publishing the plugin is a separate release process described below.
 
 1. Branch off `develop` following the naming rules above.
 2. Keep the pull request focused on one thing. Two unrelated changes are two

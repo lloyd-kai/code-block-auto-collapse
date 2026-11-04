@@ -11,6 +11,12 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ### Added
 
+- Per-window rendering contexts for macOS popouts, with display-density tracking
+  and cleanup when windows close or tabs migrate.
+- A local install command that accepts Unicode and space-containing vault paths
+  and preserves existing notes and plugin settings.
+- macOS in the CI matrix and DOM regressions for window, input and install behavior.
+
 - A Styling section in `README.md` (and 自定义样式 in the Chinese half)
   documenting the wrapper class, the state classes, the inner-element prefix, and
   the eight `--cbac-*` custom properties. Seven of them are rewritten by the
@@ -19,6 +25,11 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   issue later.
 
 ### Changed
+
+- Hover previews accumulate trackpad pixel deltas. Control-click, pinch and
+  horizontal wheel gestures retain their native behavior. Cancelled pointer
+  capture and destroyed views no longer leave pending navigation.
+- Minimap navigation follows the system reduced-motion preference.
 
 - `.github/dependabot.yml` now targets `develop` instead of the default branch.
   Dependency upgrades are integration work, and `main` has to stay exactly equal
