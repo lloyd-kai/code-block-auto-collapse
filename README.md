@@ -2,7 +2,7 @@
 
 **English** · [中文](#中文说明)
 
-**Version 1.0.1** · requires Obsidian **1.13.0** or newer · desktop and mobile
+**Version 1.0.2** · requires Obsidian **1.13.0** or newer · desktop and mobile
 
 A long fenced code block can swallow a whole note. This plugin keeps code blocks compact in Reading view and gives the very long ones a real code minimap, so you can still see the shape of the code and jump around it without scrolling past hundreds of lines.
 
@@ -73,11 +73,11 @@ Everything else is drawn from Obsidian's own variables — `--text-normal`, `--b
 
 ## Install
 
-### From the release ZIP
+### From GitHub Releases
 
-Unzip `code-block-auto-collapse-1.0.1.zip` directly into `<vault>/.obsidian/plugins/`. The archive contains the `code-block-auto-collapse` plugin directory with all runtime files.
-
-The ZIP holds exactly three files — `main.js`, `manifest.json`, and `styles.css` — under a single `code-block-auto-collapse/` directory. It is produced by `npm run release`, so it always matches the current build.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/lloyd-kai/code-block-auto-collapse/releases/latest).
+2. Place the three files in `<vault>/.obsidian/plugins/code-block-auto-collapse/`. Create the folder if needed.
+3. Enable **Code Block Auto Collapse** in Obsidian's community plugins settings.
 
 ### Build from source
 
@@ -170,32 +170,17 @@ The version comes from `manifest.json`; `package.json` and `versions.json` shoul
 
 ### Publishing to the community directory
 
-The plugin is listed in the [Obsidian community directory](https://community.obsidian.md). Submitting goes through the directory's web form — **not** through a pull request against `obsidian-releases`, which is the older process and no longer used.
+Install the current version from [GitHub Releases](https://github.com/lloyd-kai/code-block-auto-collapse/releases/latest) using the manual installation steps above.
 
-1. Push a tag matching `manifest.version` exactly (no `v` prefix). `.github/workflows/release.yml` then builds the plugin, generates a build provenance attestation, and opens a **draft** release with `main.js`, `manifest.json`, and `styles.css` attached. Add the release notes and publish it. The workflow refuses to run if the tag and the manifest version disagree.
-2. Sign in at [community.obsidian.md](https://community.obsidian.md) with an **Obsidian account**, then connect your GitHub account under **Profile → GitHub**. The directory uses that connection to verify you own the repository, so it is required before you can submit.
-3. Open **Plugins → New plugin**, enter the repository URL, and accept the [developer policies](https://docs.obsidian.md/Community+directory/Developer+policies).
-
-The directory then scans the manifest, the release assets, the source code, and the build. Those four groups each report errors, warnings, recommendations, or passes, and an error blocks installation from Obsidian until it is resolved. **Review branch** previews a scan against any branch, tag, or commit — no release required — which is the fastest way to check a fix.
-
-Run `npm run validate` before submitting: it asserts the requirements that the scanner checks, so the common failures are caught locally instead. The official walkthrough — including listing metadata and screenshot specs — is at [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin).
-
-Only the initial submission uses the form. After that, publishing a new release is all it takes.
+Maintainers submit the plugin through the [Obsidian community directory](https://community.obsidian.md). The repository's default branch must point to a version with a matching published GitHub Release. See the [maintainer checklist](CONTRIBUTING.md#publishing-to-the-community-directory) and Obsidian's [submission guide](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin).
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first. In short:
-
-- **Branches** follow GitFlow. `main` holds the released state and is the default branch; `develop` is the integration branch. Work happens on `feature/<topic>`, `bugfix/<topic>`, `release/<version>`, or `hotfix/<version>`, merged back with `--no-ff`.
-- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(minimap): add drag-to-resize gutter`.
-- **Versions** follow SemVer, with the Obsidian constraint that `manifest.version` may contain only digits and periods — no `-beta` suffixes.
-- **Issues** use the provided forms; blank issues are disabled.
-
-Changes land on `develop` and reach `main` through a `release/*` branch, which is where the version bump and the tag are applied. Notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+Use the [issue forms](https://github.com/lloyd-kai/code-block-auto-collapse/issues/new/choose) for bugs and feature requests. Open feature and fix PRs against `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit and release conventions.
 
 ## Disclosures
 
-Obsidian's [developer policies](https://docs.obsidian.md/Community+directory/Developer+policies) require plugins to declare anything that touches the user's data, network, or money. This plugin declares all of the following as **none**:
+Obsidian's [developer policies](https://docs.obsidian.md/community-directory/developer-policies) require plugins to declare anything that touches the user's data, network, or money. This plugin declares all of the following as **none**:
 
 | Item | Status |
 |---|---|
@@ -228,7 +213,7 @@ MIT — see [LICENSE](LICENSE).
 
 [English](#code-block-auto-collapse) · **中文**
 
-**版本 1.0.1** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
+**版本 1.0.2** · 需要 Obsidian **1.13.0** 或更高 · 桌面端与移动端
 
 一段长代码会把整篇笔记挤没。这个插件让代码块在阅读视图里保持紧凑，并为特别长的代码块配一个真正的代码缩略图 —— 你既能一眼看出代码的形状，也能直接跳转，不用滚过几百行样板代码。
 
@@ -299,11 +284,11 @@ MIT — see [LICENSE](LICENSE).
 
 ## 安装
 
-### 用发布包
+### 从 GitHub Release 安装
 
-把 `code-block-auto-collapse-1.0.1.zip` 直接解压到 `<vault>/.obsidian/plugins/`。压缩包内是完整的 `code-block-auto-collapse` 插件目录。
-
-包内恰好三个文件 —— `main.js`、`manifest.json`、`styles.css`，位于 `code-block-auto-collapse/` 目录下。它由 `npm run release` 生成，始终与当前构建一致。
+1. 从[最新发布页](https://github.com/lloyd-kai/code-block-auto-collapse/releases/latest)下载 `main.js`、`manifest.json` 和 `styles.css`。
+2. 将三个文件放到 `<vault>/.obsidian/plugins/code-block-auto-collapse/`，目录不存在时先创建。
+3. 在 Obsidian 的第三方插件设置中启用 **Code Block Auto Collapse**。
 
 ### 从源码构建
 
@@ -329,7 +314,7 @@ npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
 
 历次 bug 的成因写在 [CHANGELOG.md](CHANGELOG.md)，源码按职责分目录放在 [`src/`](src)。
 
-分支模型、提交信息格式、版本号规范与 issue 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+功能和修复 PR 请提交到 `develop`。提交 Issue 或 PR 前可查阅[贡献指南](CONTRIBUTING.md)。
 
 常用命令：
 
@@ -343,21 +328,13 @@ npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
 
 ## 发布与上架
 
-插件已列入 [Obsidian 社区目录](https://community.obsidian.md)。提交走目录的**网页表单**，不是往 `obsidian-releases` 提 PR —— 那是已经废弃的旧流程。
+当前版本可从 [GitHub Releases](https://github.com/lloyd-kai/code-block-auto-collapse/releases/latest) 下载，按上方步骤手动安装。
 
-1. 推送与 `manifest.version` **完全一致**的 tag（不带 `v` 前缀）。`.github/workflows/release.yml` 会自动构建、生成构建溯源证明，并建一个 **draft** Release 附上 `main.js`、`manifest.json`、`styles.css` 三个文件。补好发布说明后手动发布。tag 与版本号不一致时工作流会直接失败。
-2. 用 **Obsidian 账号**登录 [community.obsidian.md](https://community.obsidian.md)，在 **Profile → GitHub** 关联 GitHub 账号。目录靠这个确认仓库归属，**不关联就无法提交**。
-3. 侧栏 **Plugins → New plugin**，填仓库地址，同意[开发者政策](https://docs.obsidian.md/Community+directory/Developer+policies)。
-
-之后目录会扫描 manifest、Release 附件、源码与构建，分四组给出错误 / 警告 / 建议 / 通过；存在错误时插件无法从 Obsidian 内安装。**Review branch** 可以在不发 Release 的情况下对任意分支或 commit 预览扫描结果，是验证修复最快的方式。
-
-提交前先跑 `npm run validate`，它把扫描器会检查的要求变成了本地断言。完整的提交步骤、条目元数据与截图规格见官方 [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin) 指南。
-
-只有首次上架需要走表单，之后每次更新只需发布新的 Release。
+维护者通过 [Obsidian 社区目录](https://community.obsidian.md) 提交审核。仓库默认分支的版本需有对应的公开 GitHub Release。具体步骤见[维护者清单](CONTRIBUTING.md#publishing-to-the-community-directory)和 [Obsidian 官方送审指南](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin)。
 
 ## 隐私与合规声明
 
-Obsidian 的[开发者政策](https://docs.obsidian.md/Community+directory/Developer+policies)要求插件声明任何涉及用户数据、网络或付费的行为。本插件全部声明为**无**：
+Obsidian 的[开发者政策](https://docs.obsidian.md/community-directory/developer-policies)要求插件声明任何涉及用户数据、网络或付费的行为。本插件全部声明为**无**：
 
 | 项目 | 状态 |
 |---|---|

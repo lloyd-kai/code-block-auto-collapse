@@ -9,6 +9,8 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-13
+
 ### Added
 
 - Per-window rendering contexts for macOS popouts, with display-density tracking
@@ -30,20 +32,10 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
   horizontal wheel gestures retain their native behavior. Cancelled pointer
   capture and destroyed views no longer leave pending navigation.
 - Minimap navigation follows the system reduced-motion preference.
-
-- `.github/dependabot.yml` now targets `develop` instead of the default branch.
-  Dependency upgrades are integration work, and `main` has to stay exactly equal
-  to the source of the published tag: the directory rebuilds the default branch
-  and compares the result against the release assets, so merging a dependency
-  pull request into `main` would be editing an already-released version. Without
-  `target-branch`, Dependabot aims at the default branch, and all three pull
-  requests it opened pointed at `main`.
-- The `types` group was split into `node-types` and `typescript`, and
-  `typescript` is now ignored from 6.1.0 upwards. `typescript-eslint` 8.x
-  declares `typescript >=4.8.4 <6.1.0`, and `eslint.config.mjs` enables
-  `projectService` for type-aware linting, so a newer compiler makes
-  `npm run lint` fail while `tsc --noEmit` and esbuild keep passing. Remove the
-  ignore once `typescript-eslint` supports the newer compiler.
+- Simplified the pull request and issue templates and documented the
+  contribution workflow, including how to reference an issue from `develop`.
+- Updated the English and Chinese README sections on submitting the plugin for
+  review in the Obsidian community directory.
 - `eslint` was bumped to 10 and `esbuild` to 0.28. The esbuild bump was checked to
   be output-neutral before it was taken: building the same source with 0.25.12 and
   with 0.28.2 produced a byte-identical `main.js`. That check matters because the
@@ -68,6 +60,8 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ### Removed
 
+- Removed scheduled Dependabot version-update PRs for npm and GitHub Actions.
+  Security updates are managed through GitHub's repository security settings.
 - `PLUGIN_DEVELOPMENT.md` is no longer part of the repository. It was a
   Chinese-language development document, and the parts a reader actually needs
   are covered elsewhere: the bug history is in this file, the branch, commit and
@@ -304,6 +298,7 @@ Bugs present before this release, all of them in the minimap and folding path:
 - Every slider input rebuilt the entire document. Settings changes are now
   classified as `rebuild`, `content`, or `layout`, with a debounce.
 
-[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.2...HEAD
+[1.0.2]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/1.0.0

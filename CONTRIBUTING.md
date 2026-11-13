@@ -19,15 +19,11 @@ Two long-lived branches:
 
 | Branch | Purpose | Direct pushes |
 |---|---|---|
-| `main` | The released state. Every commit here is a published version and carries a matching tag. | Never |
+| `main` | Default branch for releases and repository maintenance that preserves the published build. | Never |
 | `develop` | Integration branch. Finished work that has not been released yet lands here. | Only changes that cannot alter the shipped plugin: `docs`, `chore`, `build`, `ci`, and doc-only `fix` |
 
-Direct pushes to `develop` are for work with no runtime effect: documentation,
-chore, dependency and tooling bumps, CI configuration. Nothing under `src/` or in
-`styles.css` has ever been pushed straight to `develop`, and that is the rule
-rather than a coincidence — a `release/*` branch is cut from `develop`, so a code
-change that lands there without a branch has no reviewable unit around it and no
-single commit to revert. If in doubt, branch.
+Direct pushes to `develop` are reserved for maintenance that has no runtime
+effect. Open a PR for changes to plugin behavior, source or styles.
 
 Short-lived branches. All of them are merged back with `--no-ff` so the branch
 topology survives in the history:
@@ -38,25 +34,22 @@ topology survives in the history:
 | `bugfix/<topic>` | `develop` | `develop` | `bugfix/fold-flicker-on-theme-change` |
 | `release/<version>` | `develop` | `main` + `develop` | `release/3.1.0` |
 | `hotfix/<version>` | `main` | `main` + `develop` | `hotfix/3.0.1` |
+| `chore/<topic>` | `main` | `main` | `chore/github-contribution-workflow` |
 | `support/<version>` | `main` | — | `support/2.x` |
 
 Naming rules:
 
 - Lowercase, words separated by a single `-`.
-- The prefix is exactly one of `feature/`, `bugfix/`, `release/`, `hotfix/`,
-  `support/`. One slash, never two — `feature/minimap-zoom`, not
-  `feature/minimap/zoom`.
-- `<topic>` describes the change, not the effort. `feature/minimap-zoom`, not
-  `feature/work` or `feature/stuff`.
-- When the change comes from an issue, append the number to a readable topic:
-  `bugfix/12-fold-flicker`. The number is a suffix, never the whole name.
-- `<version>` is the version that branch will produce: `release/1.1.0`.
+- Use a prefix from the table and a single slash. Choose a topic that describes
+  the change, such as `feature/minimap-zoom`.
+- Include the issue number when it helps identify the work, as in
+  `bugfix/12-fold-flicker`.
+- Use the intended release version in release and hotfix branch names, as in
+  `release/1.1.0`.
 
-`main` is the **default branch on GitHub**, not `develop`. This is deliberate:
-Obsidian resolves a plugin from the repository root, and `develop` carries the
-*next* version in `manifest.json` while no matching release exists yet. That
-combination produces the "No release matches your manifest version" failure. Keep
-the released state on the default branch.
+Obsidian reads the manifest from the default branch. Keep `main` aligned with
+the published release so its manifest points to the corresponding GitHub
+Release and its build reproduces the published files.
 
 ## Commit messages
 
@@ -97,9 +90,9 @@ trailing period, at most 72 characters.
 **body** — optional. Explain *why*, not *what*; the diff already says what.
 Wrap at 72 columns.
 
-**footer** — `Closes #12` or `Refs #34` to link issues. A breaking change goes in
-the footer as `BREAKING CHANGE: <what breaks and what to do about it>`, and the
-type line must also carry a `!`.
+**footer** — use `Refs #34` to reference an issue. A breaking change goes in the
+footer as `BREAKING CHANGE: <what breaks and what to do about it>`, and the type
+line must also carry a `!`.
 
 ```
 feat(minimap): add drag-to-resize gutter
@@ -108,13 +101,13 @@ The gutter was fixed at 8px, which made the minimap unusable in a narrow
 sidebar. Pointer capture keeps the drag alive when the pointer leaves the
 container.
 
-Closes #18
+Refs #18
 ```
 
 ```
 fix(settings): stop rebuilding the whole document on every slider input
 
-Closes #21
+Refs #21
 ```
 
 ```
@@ -161,88 +154,68 @@ A version number lives in five places, and all five must agree:
 asserts that the first three agree. The tag and the release are yours to get
 right.
 
-Version bumps happen on the `release/*` branch, never on `develop` directly.
+Apply version bumps on the `release/*` or `hotfix/*` branch.
 
 ## Issues
 
-Use the issue forms. A blank issue will be closed and redirected to them.
+Search for an existing report, then choose the appropriate [issue form](https://github.com/lloyd-kai/code-block-auto-collapse/issues/new/choose). Add a short summary after the form's title prefix.
 
-**Bug reports** must include the Obsidian version, the plugin version, the
-operating system, what you did, what you expected, what actually happened, and
-any console output (`Ctrl`/`Cmd` + `Shift` + `I` → Console). A minimal code block
-that reproduces the problem is worth more than a paragraph of description.
+- **Bug reports** need the plugin and Obsidian versions, platform, steps to
+  reproduce, expected behavior and actual behavior. A minimal code block,
+  relevant settings, logs and screenshots are welcome.
+- **Feature requests** need a use case and the behavior you want.
+- **Security reports** go through the private channel described in
+  [SECURITY.md](.github/SECURITY.md).
 
-**Feature requests** must state the problem before the solution. "I want to
-compare two long functions side by side and scrolling breaks my focus" is a
-usable request. "Add a split view" is not — it is one possible answer to a
-problem you have not described.
-
-**Titles** — the form prefixes them, so write the summary only:
-`Fold flickers when the theme changes`, not `[BUG] Fold flickers`.
-
-**Labels** are set by maintainers:
-
-| Label | Meaning |
-|---|---|
-| `bug` | Confirmed defect |
-| `enhancement` | Accepted feature request |
-| `documentation` | README or in-app text |
-| `good first issue` | Scoped, low risk, no prior knowledge needed |
-| `needs info` | Waiting on the reporter — stale after 30 days, then closed |
-| `duplicate` | Already tracked elsewhere |
-| `wontfix` | Out of scope; the reasoning is always in the thread |
+Maintainers add `needs info` when they need more details from the reporter.
 
 ## Pull requests
 
-Pull requests may come from a feature branch in this repository or a fork. For a
-fork, set `origin` to your fork and `upstream` to
-`lloyd-kai/code-block-auto-collapse`, branch from `upstream/develop`, then open a
-cross-fork pull request with the original repository's `develop` as its base.
-Publishing the plugin is a separate release process described below.
+1. Branch from the original repository's `develop` for features and fixes.
+   You can push the branch to a fork and open the PR against
+   `lloyd-kai/code-block-auto-collapse:develop`.
+2. Keep the PR focused on one change. Include the summary, the related issue
+   if there is one, and the checks you ran with their results. Include platform
+   details for platform-specific changes and screenshots for visible changes.
+3. Run `npm run preflight` before opening the PR and check that CI passes.
+   Use `Refs #123` on `develop`. Use `Closes #123` on a PR that targets
+   `main` and resolves the issue.
+4. Merge with a merge commit to preserve the branch history.
 
-1. Branch off `develop` following the naming rules above.
-2. Keep the pull request focused on one thing. Two unrelated changes are two
-   pull requests.
-3. `npm run preflight` must pass locally before you open it.
-4. Fill in the pull request template and link the issue with `Closes #12`.
-5. Merge with `--no-ff`. Squashing is not used — the branch topology is the
-   point of GitFlow.
+Release and hotfix PRs into `main` follow the versioning rules above and
+update [CHANGELOG.md](CHANGELOG.md). Maintainers can also open a `chore/*` PR
+from `main` for repository policy, templates or documentation. Before merging
+one, rebuild the plugin and compare the SHA-256 hashes of `main.js`,
+`manifest.json` and `styles.css` with the current GitHub Release attachments.
+If the files differ, use the release or hotfix workflow.
 
-A pull request into `main` (from `release/*` or `hotfix/*`) must also update
-`versions.json` and `CHANGELOG.md`.
+Dependabot PRs are reserved for security updates. Review them with the advisory
+and validate changes on a maintenance branch. A dependency change that affects
+the published build goes through the release or hotfix workflow. Propose
+routine dependency updates through a PR to `develop`.
+
+Commit source, tests and public project files relevant to the change. Keep local
+notes, vaults, dependencies and build output out of commits. The release
+workflow uploads the runtime files as GitHub Release attachments.
 
 ## Publishing to the community directory
 
-Listing in the [Obsidian community directory](https://community.obsidian.md) is
-done through a **web form**, not a pull request. The older process — appending
-an entry to `community-plugins.json` in `obsidianmd/obsidian-releases` and
-waiting for a `Ready for review` label — has been retired and is no longer
-mentioned anywhere in the official developer docs.
+1. Run `npm run preflight` and confirm that the version in `main`'s
+   `manifest.json` matches the tag of a published GitHub Release. For a new
+   version, tag the release commit on `main` with the version number and push
+   that tag to the canonical repository. The release workflow builds and tests
+   the plugin, attests the three runtime files and attaches them to a draft.
+   Add release notes and publish it.
+2. Sign in to the [Obsidian community directory](https://community.obsidian.md)
+   and connect the GitHub account that owns this repository. Check **Plugins**
+   for an existing entry. Use **New plugin** for the first submission.
+3. Review the manifest, release assets, source code and build results. Resolve
+   errors before publishing the listing. On an existing entry, **Review branch**
+   can preview a scan before a new release. The directory detects subsequent
+   GitHub releases.
 
-The short version, once a `release/*` branch has landed on `main`:
-
-1. Tag `main` with the exact `manifest.version`, no `v` prefix:
-   `git tag -a 1.0.1 -m "1.0.1" && git push origin 1.0.1`.
-2. `.github/workflows/release.yml` builds, runs lint and tests, generates a
-   build provenance attestation, and opens a **draft** release with the three
-   runtime files attached. Add the notes and publish it.
-3. Sign in at [community.obsidian.md](https://community.obsidian.md) with an
-   Obsidian account, connect GitHub under **Profile → GitHub**, and submit the
-   repository URL under **Plugins → New plugin**.
-
-Only the initial submission needs the form. After that, a new release is all it
-takes — the directory detects it on its own schedule.
-
-Before submitting, run `npm run validate`. It asserts the manifest constraints,
-the five-way version agreement, the artifact hashes, and the rules the
-directory scanner applies (`main.js` must not be tracked by Git, the README must
-carry a disclosures section, `package.json` must expose a build script the
-scanner can find).
-
-The full walkthrough — scanner result groups, listing metadata, screenshot
-specs, private source repositories — is in the official
-[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)
-guide.
+See the official [submission guide](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin)
+and [review instructions](https://docs.obsidian.md/community-directory/manage-entry).
 
 ## Local checks
 

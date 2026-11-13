@@ -1,7 +1,7 @@
 {
   "id": "code-block-auto-collapse",
   "name": "Code Block Auto Collapse",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.13.0",
   "description": "Collapse long code blocks in Reading view and navigate them with a syntax-colored code minimap.",
   "author": "lloyd-kai",
