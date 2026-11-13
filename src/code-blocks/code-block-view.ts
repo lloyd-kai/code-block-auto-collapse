@@ -204,6 +204,12 @@ export class CodeBlockView implements MinimapHost {
 		this.minimap?.refreshColors();
 	}
 
+	/** 同一个标签页移入另一个原生窗口后重新绑定帧与计时器。 */
+	refreshWindow(): void {
+		this.contentCheckedAt = Number.NEGATIVE_INFINITY;
+		this.minimap?.refreshWindow();
+	}
+
 	/** 卸载或重建前调用，把 DOM 还原成原始的 `<pre>`。 */
 	destroy(): void {
 		this.minimap?.destroy();

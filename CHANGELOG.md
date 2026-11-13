@@ -9,7 +9,15 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-13
+
 ### Added
+
+- Per-window rendering contexts for macOS popouts, with display-density tracking
+  and cleanup when windows close or tabs migrate.
+- A local install command that accepts Unicode and space-containing vault paths
+  and preserves existing notes and plugin settings.
+- macOS in the CI matrix and DOM regressions for window, input and install behavior.
 
 - A Styling section in `README.md` (and 自定义样式 in the Chinese half)
   documenting the wrapper class, the state classes, the inner-element prefix, and
@@ -20,6 +28,10 @@ Obsidian constraint that rules out pre-release suffixes in `manifest.version`.
 
 ### Changed
 
+- Hover previews accumulate trackpad pixel deltas. Control-click, pinch and
+  horizontal wheel gestures retain their native behavior. Cancelled pointer
+  capture and destroyed views no longer leave pending navigation.
+- Minimap navigation follows the system reduced-motion preference.
 - Simplified the pull request and issue templates and documented the
   contribution workflow, including how to reference an issue from `develop`.
 - Updated the English and Chinese README sections on submitting the plugin for
@@ -286,6 +298,7 @@ Bugs present before this release, all of them in the minimap and folding path:
 - Every slider input rebuilt the entire document. Settings changes are now
   classified as `rebuild`, `content`, or `layout`, with a debounce.
 
-[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.2...HEAD
+[1.0.2]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/lloyd-kai/code-block-auto-collapse/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/lloyd-kai/code-block-auto-collapse/releases/tag/1.0.0

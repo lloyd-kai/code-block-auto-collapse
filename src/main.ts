@@ -2,6 +2,7 @@ import { Plugin } from "obsidian";
 import { CodeBlockView, type CodeBlockHost } from "./code-blocks/code-block-view";
 import { decorateCodeBlocks } from "./code-blocks/decorator";
 import { invalidateColorCache } from "./render/syntax-colors";
+import { WindowContext } from "./platform/window-context";
 import { CodeBlockAutoCollapseSettingTab } from "./settings-tab";
 import {
 	DEFAULT_SETTINGS,
@@ -9,7 +10,7 @@ import {
 	normalizeSettings,
 	type CodeBlockSettings,
 } from "./settings";
-import { clamp, computedStyle, debounce, noopSchedulable, throttleFrame, type Cancellable, type Schedulable } from "./util/helpers";
+import { clamp, computedStyle, debounce, noopSchedulable, type Cancellable, type Schedulable } from "./util/helpers";
 
 /** 设置变化后如何刷新已有代码块。 */
 export type SettingsUpdateMode = "rebuild" | "layout" | "content";
@@ -24,16 +25,14 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 	settings: CodeBlockSettings = { ...DEFAULT_SETTINGS };
 
 	private readonly views = new Set<CodeBlockView>();
-	private readonly watchedDocuments = new Set<Document>();
-	private resizeObserver: ResizeObserver | null = null;
-	private scheduleUpdate: Cancellable = noopSchedulable();
+	private readonly windows = new Map<Document, WindowContext>();
+	private readonly viewCleanups = new Map<CodeBlockView, () => void>();
 	private scheduleSave: Schedulable = noopSchedulable();
 	private scheduleRebuild: Cancellable = noopSchedulable();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		this.scheduleUpdate = throttleFrame(() => this.updateAllViews(), window);
 		this.scheduleSave = debounce(() => {
 			void this.saveData(this.settings);
 		}, 400, window);
@@ -42,13 +41,24 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 		this.registerMarkdownPostProcessor((element) => {
 			this.decorate(element);
 		});
-		this.registerDomEvent(window, "resize", () => this.scheduleUpdate(), { passive: true });
 		this.watchDocument(document);
 
 		this.registerEvent(this.app.workspace.on("css-change", () => this.handleCssChange()));
-		this.registerEvent(this.app.workspace.on("layout-change", () => this.scheduleUpdate()));
-		// 弹出窗口有独立的 document，需要单独监听滚动
+		this.registerEvent(this.app.workspace.on("layout-change", () => {
+			for (const context of this.windows.values()) context.scheduleUpdate();
+		}));
 		this.registerEvent(this.app.workspace.on("window-open", (_workspaceWindow, win) => this.watchDocument(win.document)));
+		this.registerEvent(this.app.workspace.on("window-close", (_workspaceWindow, win) => this.unwatchDocument(win.document)));
+		this.app.workspace.onLayoutReady(() => {
+			// 插件热重载时，弹出窗口和阅读视图可能已经存在。
+			this.app.workspace.iterateAllLeaves((leaf) => {
+				if (leaf.view.getViewType() !== "markdown") return;
+				this.watchDocument(leaf.view.containerEl.ownerDocument);
+				for (const root of leaf.view.containerEl.querySelectorAll<HTMLElement>(".markdown-preview-view")) {
+					this.decorate(root);
+				}
+			});
+		});
 
 		this.addSettingTab(new CodeBlockAutoCollapseSettingTab(this.app, this));
 	}
@@ -58,12 +68,13 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 		// 设置写入是 400ms 防抖的，直接 cancel 会把最后一次改动一起丢掉 ——
 		// 改完设置（或拖完缩略图宽度）马上重载插件就会复现。
 		this.scheduleSave.flush();
-		this.scheduleUpdate.cancel();
 		this.scheduleRebuild.cancel();
-		for (const view of [...this.views]) view.destroy();
-		this.views.clear();
-		this.resizeObserver?.disconnect();
-		this.resizeObserver = null;
+		for (const view of [...this.views]) {
+			view.destroy();
+			this.dropView(view);
+		}
+		for (const context of this.windows.values()) context.destroy();
+		this.windows.clear();
 	}
 
 	/* ---------- CodeBlockHost ---------- */
@@ -136,25 +147,35 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 
 	private trackView(view: CodeBlockView): void {
 		this.views.add(view);
-		if (!this.resizeObserver) {
-			this.resizeObserver = new ResizeObserver(() => this.scheduleUpdate());
-		}
-		this.resizeObserver.observe(view.wrapper);
+		let context = this.watchDocument(view.wrapper.ownerDocument);
+		context?.observe(view.wrapper);
+		const stopMigration = view.wrapper.onWindowMigrated((win) => {
+			context?.unobserve(view.wrapper);
+			context = this.watchDocument(win.document);
+			view.refreshWindow();
+			context?.observe(view.wrapper);
+			context?.scheduleUpdate();
+		});
+		this.viewCleanups.set(view, () => {
+			stopMigration();
+			context?.unobserve(view.wrapper);
+		});
 	}
 
 	private dropView(view: CodeBlockView): void {
 		this.views.delete(view);
-		this.resizeObserver?.unobserve(view.wrapper);
+		this.viewCleanups.get(view)?.();
+		this.viewCleanups.delete(view);
 	}
 
-	private updateAllViews(): void {
+	private updateViews(doc: Document): void {
 		for (const view of [...this.views]) {
 			if (!view.wrapper.isConnected) {
 				view.destroy();
 				this.dropView(view);
 				continue;
 			}
-			view.update();
+			if (view.wrapper.ownerDocument === doc) view.update();
 		}
 	}
 
@@ -175,15 +196,22 @@ export default class CodeBlockAutoCollapsePlugin extends Plugin implements CodeB
 		for (const view of this.views) view.refreshColors();
 	}
 
-	private watchDocument(doc: Document): void {
-		if (this.watchedDocuments.has(doc)) return;
-		this.watchedDocuments.add(doc);
-		const onScroll = (): void => this.scheduleUpdate();
-		// scroll 不冒泡，但捕获阶段可以收到子元素的滚动
-		doc.addEventListener("scroll", onScroll, { capture: true, passive: true });
-		this.register(() => {
-			doc.removeEventListener("scroll", onScroll, { capture: true });
-			this.watchedDocuments.delete(doc);
-		});
+	private watchDocument(doc: Document): WindowContext | null {
+		const existing = this.windows.get(doc);
+		if (existing) return existing;
+		if (!doc.defaultView) return null;
+		const context = new WindowContext(doc, () => this.updateViews(doc));
+		this.windows.set(doc, context);
+		return context;
+	}
+
+	private unwatchDocument(doc: Document): void {
+		for (const view of [...this.views]) {
+			if (view.wrapper.ownerDocument !== doc) continue;
+			view.destroy();
+			this.dropView(view);
+		}
+		this.windows.get(doc)?.destroy();
+		this.windows.delete(doc);
 	}
 }

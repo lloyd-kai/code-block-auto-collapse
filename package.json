@@ -1,22 +1,25 @@
 {
   "name": "code-block-auto-collapse",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --external:obsidian --external:@codemirror/* --format=cjs --platform=node --target=es2018 --charset=utf8 --outfile=main.js --sourcemap",
     "build": "tsc --noEmit && esbuild src/main.ts --bundle --external:obsidian --external:@codemirror/* --format=cjs --platform=node --target=es2018 --charset=utf8 --outfile=main.js --minify",
-    "test": "node tools/smoke-test.mjs",
+    "test": "node tools/smoke-test.mjs && npm run test:platform",
     "lint": "eslint src",
     "validate": "node tools/validate-submission.mjs",
     "preflight": "npm run lint && npm test && npm run release && npm run validate",
     "weights": "node tools/generate-character-weights.mjs",
-    "release": "npm run build && node tools/package-release.mjs"
+    "release": "npm run build && node tools/package-release.mjs",
+    "test:platform": "node --test tools/platform-test.mjs tools/install-local-test.mjs",
+    "install:local": "npm run build && node tools/install-local.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",
     "esbuild": "^0.28.2",
     "eslint": "^10.10.0",
     "eslint-plugin-obsidianmd": "^0.4.2",
+    "happy-dom": "^21.0.4",
     "obsidian": "^1.13.1",
     "tslib": "^2.8.1",
     "typescript": "^5.0.0"
