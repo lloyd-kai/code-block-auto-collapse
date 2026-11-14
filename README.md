@@ -178,6 +178,10 @@ Maintainers submit the plugin through the [Obsidian community directory](https:/
 
 Use the [issue forms](https://github.com/lloyd-kai/code-block-auto-collapse/issues/new/choose) for bugs and feature requests. Open feature and fix PRs against `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit and release conventions.
 
+## Acknowledgments
+
+Thanks to **GPT (OpenAI)** and **DeepSeek** for assistance during development.
+
 ## Disclosures
 
 Obsidian's [developer policies](https://docs.obsidian.md/community-directory/developer-policies) require plugins to declare anything that touches the user's data, network, or money. This plugin declares all of the following as **none**:
@@ -331,6 +335,10 @@ npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
 当前版本可从 [GitHub Releases](https://github.com/lloyd-kai/code-block-auto-collapse/releases/latest) 下载，按上方步骤手动安装。
 
 维护者通过 [Obsidian 社区目录](https://community.obsidian.md) 提交审核。仓库默认分支的版本需有对应的公开 GitHub Release。具体步骤见[维护者清单](CONTRIBUTING.md#publishing-to-the-community-directory)和 [Obsidian 官方送审指南](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin)。
+
+## 致谢
+
+感谢 **GPT（OpenAI）** 和 **DeepSeek** 在开发过程中提供的辅助。
 
 ## 隐私与合规声明
 
