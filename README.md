@@ -180,7 +180,7 @@ Use the [issue forms](https://github.com/lloyd-kai/code-block-auto-collapse/issu
 
 ## Acknowledgments
 
-Thanks to **GPT (OpenAI)** and **DeepSeek** for assistance during development.
+Thanks to **[GPT (OpenAI)](https://github.com/openai/codex)** and **[DeepSeek](https://github.com/deepseek-ai)** for assistance during development.
 
 ## Disclosures
 
@@ -338,7 +338,7 @@ npm run install:local -- --vault "/Users/you/Documents/我的笔记库"
 
 ## 致谢
 
-感谢 **GPT（OpenAI）** 和 **DeepSeek** 在开发过程中提供的辅助。
+感谢 **[GPT（OpenAI）](https://github.com/openai/codex)** 和 **[DeepSeek](https://github.com/deepseek-ai)** 在开发过程中提供的辅助。
 
 ## 隐私与合规声明
 
